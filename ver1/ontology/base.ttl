@@ -1,0 +1,271 @@
+@base <https://github.com/bpmbpm/DSL1/ontology#> .
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dsl:  <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix ui:   <https://github.com/bpmbpm/DSL1/ontology/ui#> .
+@prefix dc:   <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# Ontology Declaration
+# ---------------------------------------------------------------------------
+
+<https://github.com/bpmbpm/DSL1/ontology>
+    a owl:Ontology ;
+    owl:versionIRI <https://github.com/bpmbpm/DSL1/ontology/1.0> ;
+    owl:versionInfo "1.0.0" ;
+    dc:title "DSL1 Base Ontology" ;
+    dc:description "Foundational OWL/RDF ontology for the DSL1 programming system. Provides core concept classes, properties, and annotation infrastructure shared by all domain ontologies and the PL/SPARQL runtime." ;
+    dc:creator "DSL1 Project" ;
+    dcterms:created "2026-01-01"^^xsd:date ;
+    dcterms:modified "2026-03-22"^^xsd:date ;
+    dcterms:license <https://opensource.org/licenses/MIT> ;
+    rdfs:comment "This ontology underpins the DSL1 system: PL/SPARQL procedural DSL, UI DSL binding, and the JavaScript translator target. All domain-specific ontologies (calculator, task-manager, inventory, etc.) import this base." .
+
+# ---------------------------------------------------------------------------
+# Annotation Properties (DSL binding metadata)
+# ---------------------------------------------------------------------------
+
+dsl:dslFunction
+    a owl:AnnotationProperty ;
+    rdfs:label "DSL function name" ;
+    rdfs:comment "Names the PL/SPARQL function that is the primary entry point for reading or manipulating instances of the annotated class." ;
+    rdfs:subPropertyOf rdfs:seeAlso .
+
+dsl:dslGraph
+    a owl:AnnotationProperty ;
+    rdfs:label "DSL named graph" ;
+    rdfs:comment "The named graph (TriG/quad-store context) in which instances of the annotated class are stored and queried." ;
+    rdfs:subPropertyOf rdfs:seeAlso .
+
+dsl:dslUIComponent
+    a owl:AnnotationProperty ;
+    rdfs:label "Default UI component" ;
+    rdfs:comment "Specifies the preferred UI DSL component type to use when auto-generating a view for instances of the annotated class or property." ;
+    rdfs:subPropertyOf rdfs:seeAlso .
+
+dsl:dslTranslatorHint
+    a owl:AnnotationProperty ;
+    rdfs:label "Translator hint" ;
+    rdfs:comment "Free-text hint passed to the PL/SPARQL-to-JavaScript translator, e.g. preferred JS idiom or optimisation flag." ;
+    rdfs:subPropertyOf rdfs:comment .
+
+dsl:bindExpression
+    a owl:AnnotationProperty ;
+    rdfs:label "Bind expression" ;
+    rdfs:comment "A PL/SPARQL expression string that, when evaluated, returns the value to which a UI element should be bound." ;
+    rdfs:subPropertyOf rdfs:seeAlso .
+
+dsl:displayTemplate
+    a owl:AnnotationProperty ;
+    rdfs:label "Display template" ;
+    rdfs:comment "A mustache-style template string used by the UI DSL renderer to format a value for display." ;
+    rdfs:subPropertyOf rdfs:comment .
+
+# ---------------------------------------------------------------------------
+# Core Concept Classes
+# ---------------------------------------------------------------------------
+
+dsl:Entity
+    a owl:Class ;
+    rdfs:label "Entity" ;
+    rdfs:comment "The root class for all domain objects managed by the DSL1 system. Every named individual in a domain ontology should be a subclass of Entity." ;
+    skos:definition "A uniquely identifiable domain object that can have properties, participate in processes, and be rendered by UI components." ;
+    dsl:dslGraph "default" .
+
+dsl:Process
+    a owl:Class ;
+    rdfs:label "Process" ;
+    rdfs:comment "A computational or business process that transforms inputs into outputs. Processes are expressed as FUNCTION bodies in PL/SPARQL and may read from or write to the tripleStore." ;
+    skos:definition "A named, parameterised unit of computation whose side-effects are limited to SPARQL INSERT/DELETE operations on a named graph." ;
+    rdfs:subClassOf dsl:Entity ;
+    dsl:dslFunction "runProcess" ;
+    dsl:dslUIComponent "BUTTON" .
+
+dsl:Property
+    a owl:Class ;
+    rdfs:label "Property" ;
+    rdfs:comment "A descriptor for an attribute or relationship that a domain Entity may possess. Instances of this class correspond to OWL object or data properties in domain ontologies." ;
+    skos:definition "A typed attribute or relationship defined on an Entity." ;
+    rdfs:subClassOf dsl:Entity ;
+    dsl:dslUIComponent "FIELD" .
+
+dsl:Value
+    a owl:Class ;
+    rdfs:label "Value" ;
+    rdfs:comment "A concrete datum produced by a Process or read from the tripleStore. Values are typed by XSD datatypes or by reference to other Entities." ;
+    skos:definition "The result of evaluating a Property on an Entity, expressed as an XSD literal or an IRI." ;
+    rdfs:subClassOf dsl:Entity .
+
+dsl:UIComponent
+    a owl:Class ;
+    rdfs:label "UIComponent" ;
+    rdfs:comment "The base class for all UI DSL widget types. Subclasses include Window, Field, Button, Dropdown, ListView, etc. The PL/SPARQL-to-JS translator maps each UIComponent subclass to a corresponding browser DOM construct." ;
+    skos:definition "A visual element declared in a .uidsl file that can be bound to PL/SPARQL functions or tripleStore data." ;
+    rdfs:subClassOf dsl:Entity .
+
+dsl:Application
+    a owl:Class ;
+    rdfs:label "Application" ;
+    rdfs:comment "A top-level container that groups related Entities, Processes, and UIComponents into a deployable unit. An Application corresponds to one or more named graphs in the quad-store and one entry-point .uidsl file." ;
+    skos:definition "A self-contained, deployable DSL1 application comprising ontology, PL/SPARQL logic, UI DSL, and translator output." ;
+    rdfs:subClassOf dsl:Entity ;
+    dsl:dslUIComponent "WINDOW" .
+
+# ---------------------------------------------------------------------------
+# UIComponent Subclasses
+# ---------------------------------------------------------------------------
+
+ui:Window
+    a owl:Class ;
+    rdfs:label "Window" ;
+    rdfs:comment "A top-level UI container, declared with the WINDOW keyword in a .uidsl file." ;
+    rdfs:subClassOf dsl:UIComponent .
+
+ui:Field
+    a owl:Class ;
+    rdfs:label "Field" ;
+    rdfs:comment "A single-value input or display widget, declared with the FIELD keyword." ;
+    rdfs:subClassOf dsl:UIComponent .
+
+ui:Button
+    a owl:Class ;
+    rdfs:label "Button" ;
+    rdfs:comment "A clickable widget that triggers a PL/SPARQL expression or ON CLICK block." ;
+    rdfs:subClassOf dsl:UIComponent .
+
+ui:Dropdown
+    a owl:Class ;
+    rdfs:label "Dropdown" ;
+    rdfs:comment "A selection widget whose options are populated by a BIND TO clause referencing a PL/SPARQL FUNCTION or SPARQL SELECT." ;
+    rdfs:subClassOf dsl:UIComponent .
+
+ui:ListView
+    a owl:Class ;
+    rdfs:label "ListView" ;
+    rdfs:comment "A multi-row display widget whose rows are bound to a result set from a PL/SPARQL query." ;
+    rdfs:subClassOf dsl:UIComponent .
+
+ui:Label
+    a owl:Class ;
+    rdfs:label "Label" ;
+    rdfs:comment "A read-only text display widget." ;
+    rdfs:subClassOf dsl:UIComponent .
+
+# ---------------------------------------------------------------------------
+# Object Properties
+# ---------------------------------------------------------------------------
+
+dsl:hasProperty
+    a owl:ObjectProperty ;
+    rdfs:label "has property" ;
+    rdfs:comment "Relates an Entity to one of its Property descriptors." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  dsl:Property ;
+    owl:inverseOf dsl:isPropertyOf .
+
+dsl:isPropertyOf
+    a owl:ObjectProperty ;
+    rdfs:label "is property of" ;
+    rdfs:comment "Inverse of hasProperty." ;
+    rdfs:domain dsl:Property ;
+    rdfs:range  dsl:Entity .
+
+dsl:hasValue
+    a owl:ObjectProperty ;
+    rdfs:label "has value" ;
+    rdfs:comment "Relates an Entity or Property to a Value instance holding its current or computed datum." ;
+    rdfs:domain [ owl:unionOf ( dsl:Entity dsl:Property ) ] ;
+    rdfs:range  dsl:Value .
+
+dsl:isPartOf
+    a owl:ObjectProperty , owl:TransitiveProperty ;
+    rdfs:label "is part of" ;
+    rdfs:comment "Transitive whole-part relationship between Entities. Used to express that a Component, Step, or Field belongs to a containing Application, Process, or Window." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  dsl:Entity .
+
+dsl:triggers
+    a owl:ObjectProperty ;
+    rdfs:label "triggers" ;
+    rdfs:comment "Relates a UIComponent (typically a Button) to the Process it initiates when activated." ;
+    rdfs:domain dsl:UIComponent ;
+    rdfs:range  dsl:Process .
+
+dsl:produces
+    a owl:ObjectProperty ;
+    rdfs:label "produces" ;
+    rdfs:comment "Relates a Process to the Value or Entity it creates as output." ;
+    rdfs:domain dsl:Process ;
+    rdfs:range  [ owl:unionOf ( dsl:Value dsl:Entity ) ] .
+
+dsl:boundTo
+    a owl:ObjectProperty ;
+    rdfs:label "bound to" ;
+    rdfs:comment "Relates a UIComponent to the PL/SPARQL Process (FUNCTION) whose return value populates it." ;
+    rdfs:domain dsl:UIComponent ;
+    rdfs:range  dsl:Process .
+
+dsl:renderedBy
+    a owl:ObjectProperty ;
+    rdfs:label "rendered by" ;
+    rdfs:comment "Relates an Entity to the UIComponent responsible for displaying it." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  dsl:UIComponent .
+
+# ---------------------------------------------------------------------------
+# Data Properties
+# ---------------------------------------------------------------------------
+
+dsl:name
+    a owl:DatatypeProperty ;
+    rdfs:label "name" ;
+    rdfs:comment "A short human-readable identifier for any Entity. Maps to rdfs:label in serialisation but is preserved as a separate data property for SPARQL filter convenience." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  xsd:string .
+
+dsl:description
+    a owl:DatatypeProperty ;
+    rdfs:label "description" ;
+    rdfs:comment "A longer human-readable description of an Entity. Maps to rdfs:comment in serialisation." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  xsd:string .
+
+dsl:order
+    a owl:DatatypeProperty ;
+    rdfs:label "order" ;
+    rdfs:comment "An integer sort key used to control the display order of Entities within a collection, e.g. buttons in a toolbar or items in a list." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  xsd:integer .
+
+dsl:version
+    a owl:DatatypeProperty ;
+    rdfs:label "version" ;
+    rdfs:comment "A semantic-version string for an Application or ontology." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  xsd:string .
+
+dsl:createdAt
+    a owl:DatatypeProperty ;
+    rdfs:label "created at" ;
+    rdfs:comment "The XSD dateTime at which an Entity instance was inserted into the tripleStore." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  xsd:dateTime .
+
+dsl:modifiedAt
+    a owl:DatatypeProperty ;
+    rdfs:label "modified at" ;
+    rdfs:comment "The XSD dateTime of the most recent modification to an Entity instance." ;
+    rdfs:domain dsl:Entity ;
+    rdfs:range  xsd:dateTime .
+
+# ---------------------------------------------------------------------------
+# Disjoint Class Axioms
+# ---------------------------------------------------------------------------
+
+[] a owl:AllDisjointClasses ;
+   owl:members ( dsl:Process dsl:Property dsl:Value dsl:UIComponent ) .

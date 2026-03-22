@@ -1,0 +1,629 @@
+// ============================================================================
+// Inventory Management UI DSL
+// File: inventory.uidsl
+//
+// Declares the complete multi-panel UI for the inventory management system.
+// Windows: mainWindow, addProductWindow, editProductWindow, stockUpdateWindow
+// ============================================================================
+
+USE DSL "inventory.dsl"
+USE ONTOLOGY "inv: <https://github.com/bpmbpm/DSL1/ontology/inventory#>"
+
+// ============================================================================
+// Main Window — product catalogue with stock summary and alert panel
+// ============================================================================
+WINDOW mainWindow {
+  TITLE     "Inventory Management"
+  WIDTH     1200
+  HEIGHT    800
+  RESIZABLE true
+  LAYOUT    "vertical"
+  STYLE     "main-window"
+
+  // --------------------------------------------------------------------------
+  // Header bar — summary metrics
+  // --------------------------------------------------------------------------
+  PANEL headerPanel {
+    LAYOUT "horizontal"
+    STYLE  "header-panel"
+
+    LABEL totalValueLabel {
+      BIND TO  getTotalStockValue()
+      DISPLAY  "Total Stock Value: $" + FORMAT(?grandTotal, "0.00")
+      STYLE    "metric-badge"
+      AUTO_REFRESH true
+    }
+
+    LABEL lowStockLabel {
+      BIND TO  getLowStockProducts(null)
+      DISPLAY  "Low Stock Alerts: " + COUNT(*)
+      STYLE    "metric-badge metric-alert"
+      AUTO_REFRESH true
+    }
+
+    BUTTON refreshAllBtn {
+      LABEL "Refresh"
+      STYLE "btn-secondary"
+
+      ON CLICK {
+        productList.REFRESH()
+        stockValueList.REFRESH()
+        lowStockList.REFRESH()
+        movementList.REFRESH()
+        totalValueLabel.REFRESH()
+        lowStockLabel.REFRESH()
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Main content area — horizontal split: products + right panel
+  // --------------------------------------------------------------------------
+  PANEL contentPanel {
+    LAYOUT "horizontal-split"
+    STYLE  "content-panel"
+
+    // -----------------------------------------------------------------------
+    // Left: Product catalogue with filter toolbar
+    // -----------------------------------------------------------------------
+    PANEL productPanel {
+      LABEL  "Products"
+      WIDTH  700
+      LAYOUT "vertical"
+      STYLE  "product-panel"
+
+      // Filter toolbar
+      TOOLBAR productToolbar {
+        STYLE "filter-toolbar"
+
+        DROPDOWN categoryFilter {
+          LABEL     "Category"
+          BIND TO   getCategories()
+          DISPLAY   ?name
+          VALUE     ?category
+          SELECTION single
+          INCLUDE_BLANK_OPTION true
+          BLANK_LABEL "All Categories"
+          STYLE     "filter-dropdown"
+
+          ON CHANGE {
+            productList.REBIND(getProducts(categoryFilter.value))
+          }
+        }
+
+        BUTTON addProductBtn {
+          LABEL "Add Product"
+          STYLE "btn-primary"
+
+          ON CLICK {
+            NAVIGATE TO addProductWindow
+          }
+        }
+
+        BUTTON editProductBtn {
+          LABEL    "Edit"
+          STYLE    "btn-secondary"
+          DISABLED true
+
+          ON CLICK {
+            NAVIGATE TO editProductWindow WITH {
+              productId: productList.selectedItem.product
+            }
+          }
+        }
+      }
+
+      LISTVIEW productList {
+        LABEL   "Products"
+        BIND TO getProducts("")
+        COLUMNS [
+          { HEADER "Code"       VALUE ?code         WIDTH 90  },
+          { HEADER "Name"       VALUE ?name         WIDTH 200 },
+          { HEADER "Category"   VALUE ?categoryName WIDTH 110 },
+          { HEADER "Supplier"   VALUE ?supplierName WIDTH 140 },
+          { HEADER "Unit Price" VALUE ?unitPrice    WIDTH 90  ALIGN right FORMAT "0.00" },
+          { HEADER "Total Qty"  VALUE ?totalQty     WIDTH 80  ALIGN right },
+          { HEADER "Reorder At" VALUE ?reorderThreshold WIDTH 80 ALIGN right }
+        ]
+        SELECTION single
+        STYLE "product-list"
+        EMPTY_MESSAGE "No products found. Use 'Add Product' to create one."
+        ROW_STYLE_WHEN "?totalQty <= ?reorderThreshold" -> "row-low-stock"
+
+        ON SELECT {
+          editProductBtn.ENABLE()
+          adjustStockBtn.ENABLE()
+          stockEntryList.REBIND(getStockEntries(productList.selectedItem.product))
+          movementList.REBIND(getMovements(productList.selectedItem.product, 20))
+          selectedProductLabel.value = productList.selectedItem.name + " (" + productList.selectedItem.code + ")"
+        }
+      }
+
+      // Stock adjustment button for selected product
+      TOOLBAR stockToolbar {
+        STYLE "stock-toolbar"
+
+        LABEL selectedProductLabel {
+          VALUE "Select a product to manage stock"
+          STYLE "selected-product-label"
+        }
+
+        BUTTON adjustStockBtn {
+          LABEL    "Adjust Stock"
+          STYLE    "btn-warning"
+          DISABLED true
+
+          ON CLICK {
+            NAVIGATE TO stockUpdateWindow WITH {
+              productId:   productList.selectedItem.product,
+              productName: productList.selectedItem.name,
+              productCode: productList.selectedItem.code
+            }
+          }
+        }
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Right: Detail panels — stock by location + movement history
+    // -----------------------------------------------------------------------
+    PANEL detailPanel {
+      LAYOUT "vertical"
+      STYLE  "detail-panel"
+
+      // Stock by location
+      LISTVIEW stockEntryList {
+        LABEL   "Stock by Location"
+        BIND TO getStockEntries(null)
+        COLUMNS [
+          { HEADER "Location"  VALUE ?locationName WIDTH 130 },
+          { HEADER "Code"      VALUE ?locationCode WIDTH 80  },
+          { HEADER "Qty"       VALUE ?quantity     WIDTH 70  ALIGN right }
+        ]
+        SELECTION none
+        STYLE "stock-entry-list"
+        EMPTY_MESSAGE "Select a product to see stock by location."
+      }
+
+      // Low stock alerts
+      LISTVIEW lowStockList {
+        LABEL   "Low Stock Alerts"
+        BIND TO getLowStockProducts(null)
+        COLUMNS [
+          { HEADER "Code"      VALUE ?code         WIDTH 80 },
+          { HEADER "Name"      VALUE ?name         WIDTH 160 },
+          { HEADER "On Hand"   VALUE ?totalQty     WIDTH 70  ALIGN right },
+          { HEADER "Reorder"   VALUE ?reorderThreshold WIDTH 70 ALIGN right },
+          { HEADER "Supplier"  VALUE ?supplierName WIDTH 120 }
+        ]
+        SELECTION single
+        STYLE "low-stock-list"
+        EMPTY_MESSAGE "No low-stock alerts."
+
+        ON SELECT {
+          productList.SELECT_ITEM(lowStockList.selectedItem.product)
+          stockEntryList.REBIND(getStockEntries(lowStockList.selectedItem.product))
+        }
+      }
+
+      // Recent movements
+      LISTVIEW movementList {
+        LABEL   "Recent Stock Movements"
+        BIND TO getMovements(null, 20)
+        COLUMNS [
+          { HEADER "Product"   VALUE ?productName  WIDTH 130 },
+          { HEADER "Location"  VALUE ?locationName WIDTH 110 },
+          { HEADER "Delta"     VALUE ?delta        WIDTH 60  ALIGN right },
+          { HEADER "When"      VALUE ?timestamp    WIDTH 140 FORMAT "datetime-local" },
+          { HEADER "Note"      VALUE ?note         WIDTH 160 }
+        ]
+        SELECTION none
+        STYLE "movement-list"
+        EMPTY_MESSAGE "No stock movements recorded."
+        ROW_STYLE_WHEN "?delta < 0" -> "row-negative-delta"
+        ROW_STYLE_WHEN "?delta > 0" -> "row-positive-delta"
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Footer — stock valuation summary table
+  // --------------------------------------------------------------------------
+  PANEL footerPanel {
+    LABEL  "Stock Valuation"
+    STYLE  "footer-panel"
+    HEIGHT 180
+
+    LISTVIEW stockValueList {
+      LABEL   "Stock Valuation"
+      BIND TO getStockValue()
+      COLUMNS [
+        { HEADER "Product"    VALUE ?productName  WIDTH 200 },
+        { HEADER "Category"   VALUE ?categoryName WIDTH 110 },
+        { HEADER "Unit Price" VALUE ?unitPrice    WIDTH 90  ALIGN right FORMAT "0.00" },
+        { HEADER "Qty"        VALUE ?totalQty     WIDTH 70  ALIGN right },
+        { HEADER "Value"      VALUE ?lineValue    WIDTH 110 ALIGN right FORMAT "0.00" }
+      ]
+      SELECTION none
+      STYLE "valuation-list"
+      EMPTY_MESSAGE "No stock data available."
+    }
+  }
+}
+
+// ============================================================================
+// Add Product Window — form for creating a new product
+// ============================================================================
+WINDOW addProductWindow {
+  TITLE  "Add Product"
+  WIDTH  540
+  HEIGHT 580
+  MODAL  true
+  STYLE  "form-window"
+
+  FIELD newCodeField {
+    LABEL       "Product Code"
+    TYPE        text
+    PLACEHOLDER "e.g. SKU-001"
+    REQUIRED    true
+    MAX_LENGTH  50
+    STYLE       "form-field"
+  }
+
+  FIELD newNameField {
+    LABEL       "Product Name"
+    TYPE        text
+    PLACEHOLDER "Enter product name"
+    REQUIRED    true
+    MAX_LENGTH  200
+    STYLE       "form-field"
+  }
+
+  FIELD newDescField {
+    LABEL       "Description"
+    TYPE        textarea
+    PLACEHOLDER "Optional product description"
+    ROWS        3
+    STYLE       "form-field"
+  }
+
+  DROPDOWN newCategoryDropdown {
+    LABEL     "Category"
+    BIND TO   getCategories()
+    DISPLAY   ?name
+    VALUE     ?category
+    SELECTION single
+    REQUIRED  true
+    STYLE     "form-dropdown"
+  }
+
+  DROPDOWN newSupplierDropdown {
+    LABEL     "Primary Supplier"
+    BIND TO   getSuppliers()
+    DISPLAY   ?name
+    VALUE     ?supplier
+    SELECTION single
+    INCLUDE_BLANK_OPTION true
+    BLANK_LABEL "(None)"
+    STYLE     "form-dropdown"
+  }
+
+  FIELD newUnitPriceField {
+    LABEL       "Unit Price"
+    TYPE        number
+    PLACEHOLDER "0.00"
+    MIN         0
+    STEP        0.01
+    REQUIRED    true
+    STYLE       "form-field"
+  }
+
+  FIELD newReorderThresholdField {
+    LABEL       "Reorder Threshold"
+    TYPE        number
+    PLACEHOLDER "Minimum quantity before alert"
+    MIN         0
+    STYLE       "form-field"
+  }
+
+  BUTTON saveNewProductBtn {
+    LABEL "Add Product"
+    STYLE "btn-primary"
+
+    ON CLICK {
+      let code        = newCodeField.value
+      let name        = newNameField.value
+      let description = newDescField.value
+      let categoryId  = newCategoryDropdown.value
+      let supplierId  = newSupplierDropdown.value
+      let unitPrice   = NUMBER(newUnitPriceField.value)
+      let reorder     = NUMBER(newReorderThresholdField.value)
+
+      la-if (code === "" || code === null) {
+        SHOW ALERT "Product code is required."
+        return
+      }
+      la-if (name === "" || name === null) {
+        SHOW ALERT "Product name is required."
+        return
+      }
+      la-if (categoryId === "" || categoryId === null) {
+        SHOW ALERT "Category is required."
+        return
+      }
+      la-if (unitPrice === null || unitPrice < 0) {
+        SHOW ALERT "Please enter a valid non-negative unit price."
+        return
+      }
+
+      let result = addProduct(code, name, categoryId, supplierId, unitPrice, description, reorder)
+
+      la-if (typeof result === "string" && result.startsWith("Error")) {
+        SHOW ALERT result
+        return
+      }
+
+      NAVIGATE BACK
+      mainWindow.productList.REFRESH()
+      mainWindow.totalValueLabel.REFRESH()
+    }
+  }
+
+  BUTTON cancelNewProductBtn {
+    LABEL "Cancel"
+    STYLE "btn-secondary"
+
+    ON CLICK {
+      NAVIGATE BACK
+    }
+  }
+}
+
+// ============================================================================
+// Edit Product Window — form for updating an existing product
+// ============================================================================
+WINDOW editProductWindow {
+  TITLE  "Edit Product"
+  WIDTH  540
+  HEIGHT 580
+  MODAL  true
+  STYLE  "form-window"
+
+  ON LOAD {
+    let rows = getProductById(CONTEXT.productId)
+    la-if (rows !== null && rows.length > 0) {
+      editCodeDisplay.value         = rows[0].code
+      editNameField.value           = rows[0].name
+      editDescField.value           = rows[0].description
+      editCategoryDropdown.value    = rows[0].category
+      editSupplierDropdown.value    = rows[0].primarySupplier
+      editUnitPriceField.value      = rows[0].unitPrice
+      editReorderThresholdField.value = rows[0].reorderThreshold
+    }
+  }
+
+  FIELD editCodeDisplay {
+    LABEL    "Product Code"
+    TYPE     text
+    READONLY true
+    STYLE    "form-field form-field-readonly"
+  }
+
+  FIELD editNameField {
+    LABEL      "Product Name"
+    TYPE       text
+    REQUIRED   true
+    MAX_LENGTH 200
+    STYLE      "form-field"
+  }
+
+  FIELD editDescField {
+    LABEL "Description"
+    TYPE  textarea
+    ROWS  3
+    STYLE "form-field"
+  }
+
+  DROPDOWN editCategoryDropdown {
+    LABEL     "Category"
+    BIND TO   getCategories()
+    DISPLAY   ?name
+    VALUE     ?category
+    SELECTION single
+    REQUIRED  true
+    STYLE     "form-dropdown"
+  }
+
+  DROPDOWN editSupplierDropdown {
+    LABEL     "Primary Supplier"
+    BIND TO   getSuppliers()
+    DISPLAY   ?name
+    VALUE     ?supplier
+    SELECTION single
+    INCLUDE_BLANK_OPTION true
+    BLANK_LABEL "(None)"
+    STYLE     "form-dropdown"
+  }
+
+  FIELD editUnitPriceField {
+    LABEL    "Unit Price"
+    TYPE     number
+    MIN      0
+    STEP     0.01
+    REQUIRED true
+    STYLE    "form-field"
+  }
+
+  FIELD editReorderThresholdField {
+    LABEL "Reorder Threshold"
+    TYPE  number
+    MIN   0
+    STYLE "form-field"
+  }
+
+  BUTTON saveEditProductBtn {
+    LABEL "Save Changes"
+    STYLE "btn-primary"
+
+    ON CLICK {
+      let result = updateProduct(
+        CONTEXT.productId,
+        editNameField.value,
+        editDescField.value,
+        editCategoryDropdown.value,
+        editSupplierDropdown.value,
+        NUMBER(editUnitPriceField.value),
+        NUMBER(editReorderThresholdField.value)
+      )
+
+      la-if (typeof result === "string" && result.startsWith("Error")) {
+        SHOW ALERT result
+        return
+      }
+
+      NAVIGATE BACK
+      mainWindow.productList.REFRESH()
+      mainWindow.stockValueList.REFRESH()
+      mainWindow.totalValueLabel.REFRESH()
+    }
+  }
+
+  BUTTON cancelEditProductBtn {
+    LABEL "Cancel"
+    STYLE "btn-secondary"
+
+    ON CLICK {
+      NAVIGATE BACK
+    }
+  }
+}
+
+// ============================================================================
+// Stock Update Window — adjust stock quantity for a product at a location
+// ============================================================================
+WINDOW stockUpdateWindow {
+  TITLE  "Adjust Stock"
+  WIDTH  460
+  HEIGHT 420
+  MODAL  true
+  STYLE  "form-window"
+
+  // Product display (read-only, passed in via NAVIGATE TO)
+  FIELD stockProductDisplay {
+    LABEL    "Product"
+    TYPE     text
+    READONLY true
+    BIND TO  CONTEXT.productName + " (" + CONTEXT.productCode + ")"
+    STYLE    "form-field form-field-readonly"
+  }
+
+  DROPDOWN stockLocationDropdown {
+    LABEL     "Location"
+    BIND TO   getLocations()
+    DISPLAY   ?name
+    VALUE     ?location
+    SELECTION single
+    REQUIRED  true
+    STYLE     "form-dropdown"
+
+    // Show current quantity at the selected location when changed
+    ON CHANGE {
+      let rows = getStockEntries(CONTEXT.productId)
+      la-forEach (rows AS ?row) {
+        la-if (?row.location === stockLocationDropdown.value) {
+          currentQtyDisplay.value = STRING(?row.quantity)
+        }
+      }
+    }
+  }
+
+  FIELD currentQtyDisplay {
+    LABEL    "Current Quantity"
+    TYPE     text
+    READONLY true
+    VALUE    "—"
+    STYLE    "form-field form-field-readonly"
+  }
+
+  FIELD deltaField {
+    LABEL       "Adjustment"
+    TYPE        number
+    PLACEHOLDER "Positive to add, negative to remove"
+    REQUIRED    true
+    STYLE       "form-field"
+  }
+
+  FIELD movementNoteField {
+    LABEL       "Note"
+    TYPE        text
+    PLACEHOLDER "Optional reason for adjustment"
+    MAX_LENGTH  200
+    STYLE       "form-field"
+  }
+
+  LABEL deltaPreview {
+    VALUE "Enter an adjustment to preview the new quantity."
+    STYLE "delta-preview-label"
+  }
+
+  // Live preview of new quantity
+  ON FIELD_CHANGE deltaField {
+    let current = NUMBER(currentQtyDisplay.value)
+    let delta   = NUMBER(deltaField.value)
+    la-if (current !== null && delta !== null) {
+      let preview = current + delta
+      la-if (preview < 0) {
+        deltaPreview.value = "New quantity: " + STRING(preview) + " (WARNING: below zero)"
+        deltaPreview.STYLE = "delta-preview-label preview-warning"
+      } else {
+        deltaPreview.value = "New quantity: " + STRING(preview)
+        deltaPreview.STYLE = "delta-preview-label preview-ok"
+      }
+    }
+  }
+
+  BUTTON confirmStockBtn {
+    LABEL "Apply Adjustment"
+    STYLE "btn-primary"
+
+    ON CLICK {
+      let productId  = CONTEXT.productId
+      let locationId = stockLocationDropdown.value
+      let delta      = NUMBER(deltaField.value)
+      let note       = movementNoteField.value
+
+      la-if (locationId === null || locationId === "") {
+        SHOW ALERT "Please select a location."
+        return
+      }
+      la-if (delta === null || delta === 0) {
+        SHOW ALERT "Please enter a non-zero adjustment."
+        return
+      }
+
+      let result = updateStock(productId, locationId, delta, note)
+
+      la-if (typeof result === "string" && result.startsWith("Error")) {
+        SHOW ALERT result
+        return
+      }
+
+      NAVIGATE BACK
+      mainWindow.productList.REFRESH()
+      mainWindow.stockEntryList.REBIND(getStockEntries(productId))
+      mainWindow.movementList.REBIND(getMovements(productId, 20))
+      mainWindow.lowStockList.REFRESH()
+      mainWindow.totalValueLabel.REFRESH()
+      mainWindow.stockValueList.REFRESH()
+    }
+  }
+
+  BUTTON cancelStockBtn {
+    LABEL "Cancel"
+    STYLE "btn-secondary"
+
+    ON CLICK {
+      NAVIGATE BACK
+    }
+  }
+}

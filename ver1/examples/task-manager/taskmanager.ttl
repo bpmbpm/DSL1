@@ -1,0 +1,319 @@
+@base <https://github.com/bpmbpm/DSL1/ontology/taskmanager#> .
+
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix dsl:   <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix ui:    <https://github.com/bpmbpm/DSL1/ontology/ui#> .
+@prefix tm:    <https://github.com/bpmbpm/DSL1/ontology/taskmanager#> .
+@prefix dc:    <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# Ontology Declaration
+# ---------------------------------------------------------------------------
+
+<https://github.com/bpmbpm/DSL1/ontology/taskmanager>
+    a owl:Ontology ;
+    owl:imports <https://github.com/bpmbpm/DSL1/ontology> ;
+    owl:versionIRI <https://github.com/bpmbpm/DSL1/ontology/taskmanager/1.0> ;
+    owl:versionInfo "1.0.0" ;
+    dc:title "DSL1 Task Manager Ontology" ;
+    dc:description "OWL/RDF ontology for a project-based task manager application built with the DSL1 system. Defines classes for tasks, projects, people, statuses and priorities, together with all required properties and static individuals." ;
+    dc:creator "DSL1 Project" ;
+    dcterms:created "2026-01-01"^^xsd:date ;
+    dcterms:modified "2026-03-22"^^xsd:date ;
+    rdfs:comment "Named graph for quad-store storage: <taskmanager>" .
+
+# ---------------------------------------------------------------------------
+# Classes
+# ---------------------------------------------------------------------------
+
+tm:Task
+    a owl:Class ;
+    rdfs:label "Task" ;
+    rdfs:comment "A discrete unit of work that can be created, assigned, prioritised and progressed through a lifecycle of statuses." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "A named, describable work item belonging to exactly one Project and optionally assigned to one Person." ;
+    dsl:dslGraph "taskmanager" ;
+    dsl:dslFunction "getTasks" ;
+    dsl:dslUIComponent "LISTVIEW" .
+
+tm:Project
+    a owl:Class ;
+    rdfs:label "Project" ;
+    rdfs:comment "A named collection of related Tasks with a common goal." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "A container for a set of Tasks that share a purpose or deadline." ;
+    dsl:dslGraph "taskmanager" ;
+    dsl:dslFunction "getProjects" ;
+    dsl:dslUIComponent "LISTVIEW" .
+
+tm:Person
+    a owl:Class ;
+    rdfs:label "Person" ;
+    rdfs:comment "A human participant who can be assigned to Tasks." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "A named person who can be listed as an assignee on one or more Tasks." ;
+    dsl:dslGraph "taskmanager" ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+tm:Status
+    a owl:Class ;
+    rdfs:label "Status" ;
+    rdfs:comment "A lifecycle state for a Task. The set of valid statuses is closed and defined by ontology individuals." ;
+    rdfs:subClassOf dsl:Value ;
+    skos:definition "A named stage in the task lifecycle, e.g. To Do, In Progress, Done." ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+tm:Priority
+    a owl:Class ;
+    rdfs:label "Priority" ;
+    rdfs:comment "An urgency classification for a Task. The set of valid priorities is closed and defined by ontology individuals." ;
+    rdfs:subClassOf dsl:Value ;
+    skos:definition "A named urgency level for a task, e.g. Low, Medium, High." ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+# ---------------------------------------------------------------------------
+# Object Properties
+# ---------------------------------------------------------------------------
+
+tm:hasStatus
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has status" ;
+    rdfs:comment "Relates a Task to its current Status individual." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  tm:Status .
+
+tm:hasPriority
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has priority" ;
+    rdfs:comment "Relates a Task to its Priority classification." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  tm:Priority .
+
+tm:assignedTo
+    a owl:ObjectProperty ;
+    rdfs:label "assigned to" ;
+    rdfs:comment "Relates a Task to the Person responsible for completing it. A Task may be unassigned." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  tm:Person .
+
+tm:partOfProject
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "part of project" ;
+    rdfs:comment "Relates a Task to the Project it belongs to. Every Task must belong to exactly one Project." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  tm:Project ;
+    rdfs:subPropertyOf dsl:isPartOf .
+
+tm:hasTask
+    a owl:ObjectProperty ;
+    rdfs:label "has task" ;
+    rdfs:comment "Inverse of partOfProject. Relates a Project to its member Tasks." ;
+    rdfs:domain tm:Project ;
+    rdfs:range  tm:Task ;
+    owl:inverseOf tm:partOfProject .
+
+tm:hasMember
+    a owl:ObjectProperty ;
+    rdfs:label "has member" ;
+    rdfs:comment "Relates a Project to a Person who is a team member, not necessarily assigned to any specific task." ;
+    rdfs:domain tm:Project ;
+    rdfs:range  tm:Person .
+
+# ---------------------------------------------------------------------------
+# Data Properties
+# ---------------------------------------------------------------------------
+
+tm:taskTitle
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "task title" ;
+    rdfs:comment "A short, human-readable title for a Task, displayed as the primary identifier in list views." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  xsd:string .
+
+tm:taskDescription
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "task description" ;
+    rdfs:comment "A longer free-text description of the work to be done for a Task." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  xsd:string .
+
+tm:dueDate
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "due date" ;
+    rdfs:comment "The date by which a Task should be completed." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  xsd:date .
+
+tm:createdDate
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "created date" ;
+    rdfs:comment "The UTC dateTime at which the Task was first created in the tripleStore." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  xsd:dateTime .
+
+tm:completedDate
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "completed date" ;
+    rdfs:comment "The UTC dateTime at which the Task status was set to Done." ;
+    rdfs:domain tm:Task ;
+    rdfs:range  xsd:dateTime .
+
+tm:projectName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "project name" ;
+    rdfs:comment "The display name of a Project." ;
+    rdfs:domain tm:Project ;
+    rdfs:range  xsd:string .
+
+tm:projectDescription
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "project description" ;
+    rdfs:comment "A free-text summary of the Project's purpose and scope." ;
+    rdfs:domain tm:Project ;
+    rdfs:range  xsd:string .
+
+tm:personName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "person name" ;
+    rdfs:comment "The full display name of a Person." ;
+    rdfs:domain tm:Person ;
+    rdfs:range  xsd:string .
+
+tm:personEmail
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "person email" ;
+    rdfs:comment "The email address of a Person, used for notification routing." ;
+    rdfs:domain tm:Person ;
+    rdfs:range  xsd:string .
+
+tm:statusLabel
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "status label" ;
+    rdfs:comment "The human-readable display label of a Status individual, e.g. \"In Progress\"." ;
+    rdfs:domain tm:Status ;
+    rdfs:range  xsd:string .
+
+tm:statusKey
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "status key" ;
+    rdfs:comment "The machine-readable key used in PL/SPARQL FILTER comparisons, e.g. \"inProgress\"." ;
+    rdfs:domain tm:Status ;
+    rdfs:range  xsd:string .
+
+tm:statusOrder
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "status order" ;
+    rdfs:comment "Integer sort key for displaying statuses in lifecycle sequence." ;
+    rdfs:domain tm:Status ;
+    rdfs:range  xsd:integer .
+
+tm:priorityLabel
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "priority label" ;
+    rdfs:comment "The human-readable display label of a Priority individual, e.g. \"High\"." ;
+    rdfs:domain tm:Priority ;
+    rdfs:range  xsd:string .
+
+tm:priorityKey
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "priority key" ;
+    rdfs:comment "The machine-readable key used in PL/SPARQL FILTER comparisons, e.g. \"high\"." ;
+    rdfs:domain tm:Priority ;
+    rdfs:range  xsd:string .
+
+tm:priorityLevel
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "priority level" ;
+    rdfs:comment "Integer weight for sorting tasks by priority (lower number = higher urgency)." ;
+    rdfs:domain tm:Priority ;
+    rdfs:range  xsd:integer .
+
+# ---------------------------------------------------------------------------
+# Status Individuals
+# ---------------------------------------------------------------------------
+
+tm:statusTodo
+    a tm:Status , owl:NamedIndividual ;
+    rdfs:label "To Do" ;
+    rdfs:comment "The task has been created but work has not yet started." ;
+    tm:statusLabel "To Do" ;
+    tm:statusKey   "todo" ;
+    tm:statusOrder 1^^xsd:integer ;
+    dsl:order      1 .
+
+tm:statusInProgress
+    a tm:Status , owl:NamedIndividual ;
+    rdfs:label "In Progress" ;
+    rdfs:comment "Work on the task is actively under way." ;
+    tm:statusLabel "In Progress" ;
+    tm:statusKey   "inProgress" ;
+    tm:statusOrder 2^^xsd:integer ;
+    dsl:order      2 .
+
+tm:statusDone
+    a tm:Status , owl:NamedIndividual ;
+    rdfs:label "Done" ;
+    rdfs:comment "The task has been completed and verified." ;
+    tm:statusLabel "Done" ;
+    tm:statusKey   "done" ;
+    tm:statusOrder 3^^xsd:integer ;
+    dsl:order      3 .
+
+# ---------------------------------------------------------------------------
+# Priority Individuals
+# ---------------------------------------------------------------------------
+
+tm:priorityLow
+    a tm:Priority , owl:NamedIndividual ;
+    rdfs:label "Low" ;
+    rdfs:comment "The task is not time-sensitive and can be deferred." ;
+    tm:priorityLabel "Low" ;
+    tm:priorityKey   "low" ;
+    tm:priorityLevel 3^^xsd:integer ;
+    dsl:order        3 .
+
+tm:priorityMedium
+    a tm:Priority , owl:NamedIndividual ;
+    rdfs:label "Medium" ;
+    rdfs:comment "The task should be completed within the current sprint or iteration." ;
+    tm:priorityLabel "Medium" ;
+    tm:priorityKey   "medium" ;
+    tm:priorityLevel 2^^xsd:integer ;
+    dsl:order        2 .
+
+tm:priorityHigh
+    a tm:Priority , owl:NamedIndividual ;
+    rdfs:label "High" ;
+    rdfs:comment "The task is urgent and should be addressed immediately." ;
+    tm:priorityLabel "High" ;
+    tm:priorityKey   "high" ;
+    tm:priorityLevel 1^^xsd:integer ;
+    dsl:order        1 .
+
+# ---------------------------------------------------------------------------
+# Sample Project and Person Individuals (seed data)
+# ---------------------------------------------------------------------------
+
+tm:projectDSL1Demo
+    a tm:Project , owl:NamedIndividual ;
+    rdfs:label "DSL1 Demo Project" ;
+    tm:projectName        "DSL1 Demo Project" ;
+    tm:projectDescription "Demonstration project shipped with the DSL1 task-manager example." ;
+    dsl:createdAt         "2026-01-01T00:00:00Z"^^xsd:dateTime .
+
+tm:personAlice
+    a tm:Person , owl:NamedIndividual ;
+    rdfs:label "Alice Example" ;
+    tm:personName  "Alice Example" ;
+    tm:personEmail "alice@example.com" .
+
+tm:personBob
+    a tm:Person , owl:NamedIndividual ;
+    rdfs:label "Bob Example" ;
+    tm:personName  "Bob Example" ;
+    tm:personEmail "bob@example.com" .
