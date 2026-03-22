@@ -1,0 +1,600 @@
+// ============================================================================
+// Task Manager UI DSL
+// File: taskmanager.uidsl
+//
+// Declares the complete multi-window UI for the task manager application.
+// Windows: mainWindow, newTaskWindow, editTaskWindow, taskDetailWindow
+// Navigation is handled via NAVIGATE TO directives in ON CLICK blocks.
+// ============================================================================
+
+USE DSL "taskmanager.dsl"
+USE ONTOLOGY "tm: <https://github.com/bpmbpm/DSL1/ontology/taskmanager#>"
+
+// ============================================================================
+// Main Window — project list on the left, task list on the right
+// ============================================================================
+WINDOW mainWindow {
+  TITLE     "Task Manager"
+  WIDTH     1024
+  HEIGHT    768
+  RESIZABLE true
+  LAYOUT    "horizontal-split"
+  STYLE     "main-window"
+
+  // --------------------------------------------------------------------------
+  // Left panel: Projects
+  // --------------------------------------------------------------------------
+  PANEL projectPanel {
+    LABEL  "Projects"
+    WIDTH  280
+    STYLE  "panel-left"
+
+    LISTVIEW projectList {
+      LABEL     "Projects"
+      BIND TO   getProjects()
+      COLUMNS [
+        { HEADER "Project"    VALUE ?name       WIDTH 160 },
+        { HEADER "Tasks"      VALUE ?totalTasks WIDTH 50  ALIGN right },
+        { HEADER "Done"       VALUE ?doneTasks  WIDTH 50  ALIGN right }
+      ]
+      SELECTION single
+      STYLE "project-list"
+      EMPTY_MESSAGE "No projects found."
+
+      ON SELECT {
+        // Update the task list to show tasks for the selected project
+        taskList.REBIND(getTasksByProject(projectList.selectedItem.project))
+        selectedProjectLabel.value = projectList.selectedItem.name
+        addTaskBtn.ENABLE()
+      }
+    }
+
+    BUTTON addProjectBtn {
+      LABEL "New Project"
+      STYLE "btn-primary btn-full-width"
+
+      ON CLICK {
+        NAVIGATE TO newProjectWindow
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Right panel: Tasks for the selected project
+  // --------------------------------------------------------------------------
+  PANEL taskPanel {
+    LABEL  "Tasks"
+    LAYOUT "vertical"
+    STYLE  "panel-right"
+
+    // Filter toolbar
+    TOOLBAR filterToolbar {
+      STYLE "filter-toolbar"
+
+      LABEL selectedProjectLabel {
+        VALUE "Select a project to view its tasks"
+        STYLE "project-title-label"
+      }
+
+      DROPDOWN statusFilter {
+        LABEL     "Filter by Status"
+        BIND TO   getStatuses()
+        DISPLAY   ?label
+        VALUE     ?key
+        SELECTION single
+        INCLUDE_BLANK_OPTION true
+        BLANK_LABEL "All Statuses"
+        STYLE "status-filter-dropdown"
+
+        ON CHANGE {
+          let selectedProject = projectList.selectedItem
+          la-if (selectedProject !== null) {
+            taskList.REBIND(getTasks(statusFilter.value))
+          }
+        }
+      }
+
+      BUTTON addTaskBtn {
+        LABEL    "New Task"
+        STYLE    "btn-primary"
+        DISABLED true
+
+        ON CLICK {
+          NAVIGATE TO newTaskWindow WITH {
+            projectId: projectList.selectedItem.project,
+            projectName: projectList.selectedItem.name
+          }
+        }
+      }
+
+      BUTTON refreshBtn {
+        LABEL "Refresh"
+        STYLE "btn-secondary"
+
+        ON CLICK {
+          projectList.REFRESH()
+          taskList.REFRESH()
+          summaryPanel.REFRESH()
+        }
+      }
+    }
+
+    // Summary counts by status
+    PANEL summaryPanel {
+      BIND TO  getTaskSummaryByStatus()
+      LAYOUT   "horizontal"
+      STYLE    "summary-panel"
+
+      LABEL todoCount {
+        DISPLAY  "To Do: " + ?count
+        FILTER   ?statusKey = "todo"
+        STYLE    "summary-badge badge-todo"
+      }
+
+      LABEL inProgressCount {
+        DISPLAY  "In Progress: " + ?count
+        FILTER   ?statusKey = "inProgress"
+        STYLE    "summary-badge badge-inprogress"
+      }
+
+      LABEL doneCount {
+        DISPLAY  "Done: " + ?count
+        FILTER   ?statusKey = "done"
+        STYLE    "summary-badge badge-done"
+      }
+    }
+
+    // Task list
+    LISTVIEW taskList {
+      LABEL   "Tasks"
+      BIND TO getTasks("")
+      COLUMNS [
+        { HEADER "Title"      VALUE ?title         WIDTH 220 },
+        { HEADER "Status"     VALUE ?statusLabel   WIDTH 100 },
+        { HEADER "Priority"   VALUE ?priorityLabel WIDTH 80  },
+        { HEADER "Assignee"   VALUE ?assigneeName  WIDTH 120 },
+        { HEADER "Due Date"   VALUE ?dueDate       WIDTH 100 FORMAT "date" },
+        { HEADER "Project"    VALUE ?projectName   WIDTH 120 }
+      ]
+      SELECTION single
+      STYLE "task-list"
+      EMPTY_MESSAGE "No tasks match the current filter."
+      ROW_STYLE_BY ?statusKey {
+        "todo"       -> "row-todo",
+        "inProgress" -> "row-inprogress",
+        "done"       -> "row-done"
+      }
+
+      ON DOUBLE_CLICK {
+        NAVIGATE TO taskDetailWindow WITH {
+          taskId: taskList.selectedItem.task
+        }
+      }
+
+      ON SELECT {
+        editTaskBtn.ENABLE()
+        deleteTaskBtn.ENABLE()
+        markDoneBtn.ENABLE()
+        markInProgressBtn.ENABLE()
+      }
+    }
+
+    // Action bar for selected task
+    TOOLBAR taskActionToolbar {
+      STYLE "task-action-toolbar"
+
+      BUTTON markInProgressBtn {
+        LABEL    "Start"
+        STYLE    "btn-warning"
+        DISABLED true
+
+        ON CLICK {
+          let taskId = taskList.selectedItem.task
+          updateTaskStatus(taskId, "inProgress")
+          taskList.REFRESH()
+          summaryPanel.REFRESH()
+        }
+      }
+
+      BUTTON markDoneBtn {
+        LABEL    "Done"
+        STYLE    "btn-success"
+        DISABLED true
+
+        ON CLICK {
+          let taskId = taskList.selectedItem.task
+          updateTaskStatus(taskId, "done")
+          taskList.REFRESH()
+          summaryPanel.REFRESH()
+        }
+      }
+
+      BUTTON editTaskBtn {
+        LABEL    "Edit"
+        STYLE    "btn-secondary"
+        DISABLED true
+
+        ON CLICK {
+          NAVIGATE TO editTaskWindow WITH {
+            taskId: taskList.selectedItem.task
+          }
+        }
+      }
+
+      BUTTON deleteTaskBtn {
+        LABEL    "Delete"
+        STYLE    "btn-danger"
+        DISABLED true
+
+        ON CLICK {
+          SHOW CONFIRM "Delete task '" + taskList.selectedItem.title + "'?" {
+            ON YES {
+              deleteTask(taskList.selectedItem.task)
+              taskList.REFRESH()
+              projectList.REFRESH()
+              summaryPanel.REFRESH()
+              editTaskBtn.DISABLE()
+              deleteTaskBtn.DISABLE()
+              markDoneBtn.DISABLE()
+              markInProgressBtn.DISABLE()
+            }
+            ON NO { /* no-op */ }
+          }
+        }
+      }
+    }
+
+    // Overdue task warning panel
+    LISTVIEW overduePanel {
+      LABEL   "Overdue Tasks"
+      BIND TO getOverdueTasks()
+      COLUMNS [
+        { HEADER "Title"    VALUE ?title         WIDTH 200 },
+        { HEADER "Due"      VALUE ?dueDate       WIDTH 100 FORMAT "date" },
+        { HEADER "Priority" VALUE ?priorityLabel WIDTH 80 },
+        { HEADER "Assignee" VALUE ?assigneeName  WIDTH 120 }
+      ]
+      SELECTION single
+      STYLE "overdue-panel"
+      EMPTY_MESSAGE "No overdue tasks."
+
+      ON SELECT {
+        NAVIGATE TO taskDetailWindow WITH {
+          taskId: overduePanel.selectedItem.task
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// New Task Window — form for creating a task
+// ============================================================================
+WINDOW newTaskWindow {
+  TITLE  "New Task"
+  WIDTH  520
+  HEIGHT 560
+  MODAL  true
+  STYLE  "form-window"
+
+  // Project display (passed in via NAVIGATE TO)
+  FIELD projectDisplay {
+    LABEL    "Project"
+    TYPE     text
+    READONLY true
+    BIND TO  CONTEXT.projectName
+  }
+
+  FIELD taskTitleField {
+    LABEL       "Title"
+    TYPE        text
+    PLACEHOLDER "Enter task title"
+    REQUIRED    true
+    MAX_LENGTH  200
+    STYLE       "form-field"
+  }
+
+  FIELD taskDescField {
+    LABEL       "Description"
+    TYPE        textarea
+    PLACEHOLDER "Optional description of the work to be done"
+    ROWS        4
+    STYLE       "form-field"
+  }
+
+  DROPDOWN assigneeDropdown {
+    LABEL     "Assignee"
+    BIND TO   getPeople()
+    DISPLAY   ?name
+    VALUE     ?person
+    SELECTION single
+    INCLUDE_BLANK_OPTION true
+    BLANK_LABEL "(Unassigned)"
+    STYLE     "form-dropdown"
+  }
+
+  DROPDOWN priorityDropdown {
+    LABEL     "Priority"
+    BIND TO   getPriorities()
+    DISPLAY   ?label
+    VALUE     ?key
+    SELECTION single
+    DEFAULT   "medium"
+    REQUIRED  true
+    STYLE     "form-dropdown"
+  }
+
+  FIELD dueDateField {
+    LABEL "Due Date"
+    TYPE  date
+    STYLE "form-field"
+  }
+
+  BUTTON saveNewTaskBtn {
+    LABEL "Create Task"
+    STYLE "btn-primary"
+
+    ON CLICK {
+      let title       = taskTitleField.value
+      let description = taskDescField.value
+      let projectId   = CONTEXT.projectId
+      let assigneeId  = assigneeDropdown.value
+      let priorityKey = priorityDropdown.value
+      let dueDate     = dueDateField.value
+
+      la-if (title === "" || title === null) {
+        SHOW ALERT "Task title is required."
+        return
+      }
+
+      let result = createTask(title, description, projectId, assigneeId, priorityKey, dueDate)
+
+      la-if (typeof result === "string" && result.startsWith("Error")) {
+        SHOW ALERT result
+        return
+      }
+
+      NAVIGATE BACK
+      mainWindow.taskList.REFRESH()
+      mainWindow.projectList.REFRESH()
+      mainWindow.summaryPanel.REFRESH()
+    }
+  }
+
+  BUTTON cancelNewTaskBtn {
+    LABEL "Cancel"
+    STYLE "btn-secondary"
+
+    ON CLICK {
+      NAVIGATE BACK
+    }
+  }
+}
+
+// ============================================================================
+// Edit Task Window — form for updating an existing task
+// ============================================================================
+WINDOW editTaskWindow {
+  TITLE  "Edit Task"
+  WIDTH  520
+  HEIGHT 580
+  MODAL  true
+  STYLE  "form-window"
+
+  // Pre-populate fields from the task being edited
+  ON LOAD {
+    let rows = SELECT ?title ?description ?assignee ?priorityKey ?dueDate WHERE {
+      GRAPH <taskmanager> {
+        CONTEXT.taskId tm:taskTitle   ?title .
+        OPTIONAL { CONTEXT.taskId tm:taskDescription ?description }
+        OPTIONAL { CONTEXT.taskId tm:assignedTo      ?assignee }
+        OPTIONAL {
+          CONTEXT.taskId tm:hasPriority ?priority .
+          ?priority tm:priorityKey ?priorityKey .
+        }
+        OPTIONAL { CONTEXT.taskId tm:dueDate ?dueDate }
+      }
+    }
+    LIMIT 1
+
+    la-if (rows.length > 0) {
+      editTitleField.value       = rows[0].title
+      editDescField.value        = rows[0].description
+      editAssigneeDropdown.value = rows[0].assignee
+      editPriorityDropdown.value = rows[0].priorityKey
+      editDueDateField.value     = rows[0].dueDate
+    }
+  }
+
+  FIELD editTitleField {
+    LABEL      "Title"
+    TYPE       text
+    REQUIRED   true
+    MAX_LENGTH 200
+    STYLE      "form-field"
+  }
+
+  FIELD editDescField {
+    LABEL "Description"
+    TYPE  textarea
+    ROWS  4
+    STYLE "form-field"
+  }
+
+  DROPDOWN editAssigneeDropdown {
+    LABEL    "Assignee"
+    BIND TO  getPeople()
+    DISPLAY  ?name
+    VALUE    ?person
+    SELECTION single
+    INCLUDE_BLANK_OPTION true
+    BLANK_LABEL "(Unassigned)"
+    STYLE    "form-dropdown"
+  }
+
+  DROPDOWN editPriorityDropdown {
+    LABEL     "Priority"
+    BIND TO   getPriorities()
+    DISPLAY   ?label
+    VALUE     ?key
+    SELECTION single
+    REQUIRED  true
+    STYLE     "form-dropdown"
+  }
+
+  FIELD editDueDateField {
+    LABEL "Due Date"
+    TYPE  date
+    STYLE "form-field"
+  }
+
+  BUTTON saveEditBtn {
+    LABEL "Save Changes"
+    STYLE "btn-primary"
+
+    ON CLICK {
+      let result = updateTask(
+        CONTEXT.taskId,
+        editTitleField.value,
+        editDescField.value,
+        editAssigneeDropdown.value,
+        editPriorityDropdown.value,
+        editDueDateField.value
+      )
+
+      la-if (typeof result === "string" && result.startsWith("Error")) {
+        SHOW ALERT result
+        return
+      }
+
+      NAVIGATE BACK
+      mainWindow.taskList.REFRESH()
+    }
+  }
+
+  BUTTON cancelEditBtn {
+    LABEL "Cancel"
+    STYLE "btn-secondary"
+
+    ON CLICK {
+      NAVIGATE BACK
+    }
+  }
+}
+
+// ============================================================================
+// Task Detail Window — read-only view of all task fields
+// ============================================================================
+WINDOW taskDetailWindow {
+  TITLE  "Task Details"
+  WIDTH  480
+  HEIGHT 440
+  MODAL  true
+  STYLE  "detail-window"
+
+  FIELD detailTitle {
+    LABEL    "Title"
+    READONLY true
+    BIND TO  SPARQL {
+      SELECT ?title WHERE {
+        GRAPH <taskmanager> {
+          CONTEXT.taskId tm:taskTitle ?title .
+        }
+      }
+    }
+    DISPLAY ?title
+  }
+
+  FIELD detailStatus {
+    LABEL    "Status"
+    READONLY true
+    BIND TO  SPARQL {
+      SELECT ?statusLabel WHERE {
+        GRAPH <taskmanager> {
+          CONTEXT.taskId tm:hasStatus ?status .
+          ?status tm:statusLabel ?statusLabel .
+        }
+      }
+    }
+    DISPLAY ?statusLabel
+  }
+
+  FIELD detailPriority {
+    LABEL    "Priority"
+    READONLY true
+    BIND TO  SPARQL {
+      SELECT ?priorityLabel WHERE {
+        GRAPH <taskmanager> {
+          CONTEXT.taskId tm:hasPriority ?priority .
+          ?priority tm:priorityLabel ?priorityLabel .
+        }
+      }
+    }
+    DISPLAY ?priorityLabel
+  }
+
+  FIELD detailAssignee {
+    LABEL    "Assignee"
+    READONLY true
+    BIND TO  SPARQL {
+      SELECT ?name WHERE {
+        GRAPH <taskmanager> {
+          OPTIONAL {
+            CONTEXT.taskId tm:assignedTo ?assignee .
+            ?assignee tm:personName ?name .
+          }
+        }
+      }
+    }
+    DISPLAY ?name
+  }
+
+  FIELD detailDueDate {
+    LABEL    "Due Date"
+    READONLY true
+    BIND TO  SPARQL {
+      SELECT ?dueDate WHERE {
+        GRAPH <taskmanager> {
+          OPTIONAL { CONTEXT.taskId tm:dueDate ?dueDate }
+        }
+      }
+    }
+    DISPLAY ?dueDate
+    FORMAT  "date"
+  }
+
+  FIELD detailDescription {
+    LABEL    "Description"
+    TYPE     textarea
+    READONLY true
+    ROWS     4
+    BIND TO  SPARQL {
+      SELECT ?description WHERE {
+        GRAPH <taskmanager> {
+          OPTIONAL { CONTEXT.taskId tm:taskDescription ?description }
+        }
+      }
+    }
+    DISPLAY ?description
+  }
+
+  BUTTON closeDetailBtn {
+    LABEL "Close"
+    STYLE "btn-secondary"
+
+    ON CLICK {
+      NAVIGATE BACK
+    }
+  }
+
+  BUTTON editFromDetailBtn {
+    LABEL "Edit"
+    STYLE "btn-primary"
+
+    ON CLICK {
+      NAVIGATE TO editTaskWindow WITH {
+        taskId: CONTEXT.taskId
+      }
+    }
+  }
+}

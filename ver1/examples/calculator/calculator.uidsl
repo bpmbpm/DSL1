@@ -1,0 +1,187 @@
+// ============================================================================
+// Calculator UI DSL
+// File: calculator.uidsl
+//
+// Declares the complete UI for the calculator application.
+// Every BIND TO clause references a FUNCTION from calculator.dsl.
+// ON CLICK blocks use PL/SPARQL expressions; JS-identical operators
+// keep JS names; modified constructs use the "la-" prefix.
+// ============================================================================
+
+USE DSL "calculator.dsl"
+USE ONTOLOGY "calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#>"
+
+// ============================================================================
+// Main Calculator Window
+// ============================================================================
+WINDOW calculatorWindow {
+  TITLE     "Calculator"
+  WIDTH     480
+  HEIGHT    640
+  RESIZABLE false
+  STYLE     "calculator-window"
+
+  // --------------------------------------------------------------------------
+  // Display panel — shows the current result or entry
+  // --------------------------------------------------------------------------
+  FIELD display {
+    LABEL    "Result"
+    TYPE     text
+    READONLY true
+    BIND TO  getHistory()              // initialise with most recent result
+    DISPLAY  ?resultVal
+    STYLE    "display-panel"
+    PLACEHOLDER "0"
+  }
+
+  // --------------------------------------------------------------------------
+  // Input section
+  // --------------------------------------------------------------------------
+  FIELD operand1 {
+    LABEL       "First Number"
+    TYPE        number
+    PLACEHOLDER "Enter first number"
+    REQUIRED    true
+    STYLE       "operand-field"
+  }
+
+  FIELD operand2 {
+    LABEL       "Second Number"
+    TYPE        number
+    PLACEHOLDER "Enter second number"
+    REQUIRED    true
+    STYLE       "operand-field"
+  }
+
+  // --------------------------------------------------------------------------
+  // Operation selector — populated from the tripleStore via getOperations()
+  // --------------------------------------------------------------------------
+  DROPDOWN operationType {
+    LABEL     "Operation"
+    BIND TO   getOperations()
+    DISPLAY   ?symbol
+    VALUE     ?label
+    SELECTION single
+    REQUIRED  true
+    STYLE     "operation-dropdown"
+  }
+
+  // --------------------------------------------------------------------------
+  // Calculate button — invokes calculate(), persists result, updates display
+  // --------------------------------------------------------------------------
+  BUTTON calculateBtn {
+    LABEL "Calculate"
+    STYLE "btn-primary"
+    ORDER 1
+
+    ON CLICK {
+      let op1    = NUMBER(operand1.value)
+      let op2    = NUMBER(operand2.value)
+      let opType = operationType.value
+
+      la-if (op1 === null || op2 === null) {
+        SHOW ALERT "Please enter both numbers before calculating."
+        return
+      }
+
+      la-if (opType === null || opType === "") {
+        SHOW ALERT "Please select an operation."
+        return
+      }
+
+      let rawResult     = calculate(op1, op2, opType)
+      let displayResult = formatResult(rawResult, 10)
+
+      display.value = displayResult
+
+      la-if (!displayResult.startsWith("Error")) {
+        storeResult(op1, op2, opType, rawResult)
+        historyView.REFRESH()
+        statsLabel.REFRESH()
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Clear button — resets all inputs and the display
+  // --------------------------------------------------------------------------
+  BUTTON clearBtn {
+    LABEL "Clear"
+    STYLE "btn-secondary"
+    ORDER 2
+
+    ON CLICK {
+      operand1.value     = ""
+      operand2.value     = ""
+      operationType.value = ""
+      display.value      = ""
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Clear History button — removes all stored results
+  // --------------------------------------------------------------------------
+  BUTTON clearHistoryBtn {
+    LABEL "Clear History"
+    STYLE "btn-danger"
+    ORDER 3
+
+    ON CLICK {
+      SHOW CONFIRM "Delete all calculation history?" {
+        ON YES {
+          clearHistory()
+          historyView.REFRESH()
+          statsLabel.REFRESH()
+        }
+        ON NO {
+          // no-op
+        }
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Statistics label — shows total count and recent average
+  // --------------------------------------------------------------------------
+  LABEL statsLabel {
+    BIND TO  getHistoryCount()
+    DISPLAY  "Total calculations: " + ?total
+    STYLE    "stats-label"
+    AUTO_REFRESH true
+  }
+
+  // --------------------------------------------------------------------------
+  // History list — last 10 calculations from the tripleStore
+  // --------------------------------------------------------------------------
+  LISTVIEW historyView {
+    LABEL   "Calculation History"
+    BIND TO getHistory()
+    COLUMNS [
+      { HEADER "Operand 1"  VALUE ?op1Val    WIDTH 100 },
+      { HEADER "Op"         VALUE ?symbol    WIDTH 50  ALIGN center },
+      { HEADER "Operand 2"  VALUE ?op2Val    WIDTH 100 },
+      { HEADER "="          VALUE "="        WIDTH 30  ALIGN center },
+      { HEADER "Result"     VALUE ?resultVal WIDTH 120 },
+      { HEADER "Timestamp"  VALUE ?timestamp WIDTH 160 FORMAT "datetime-local" }
+    ]
+    SELECTION none
+    STYLE "history-list"
+    EMPTY_MESSAGE "No calculations yet. Enter numbers and press Calculate."
+  }
+
+  // --------------------------------------------------------------------------
+  // Operation frequency panel — demonstrates grouped query binding
+  // --------------------------------------------------------------------------
+  LISTVIEW frequencyView {
+    LABEL   "Operation Frequency"
+    BIND TO getOperationFrequency()
+    COLUMNS [
+      { HEADER "Operation" VALUE ?opName  WIDTH 120 },
+      { HEADER "Symbol"    VALUE ?symbol  WIDTH 60  ALIGN center },
+      { HEADER "Count"     VALUE ?count   WIDTH 80  ALIGN right }
+    ]
+    SELECTION none
+    STYLE "frequency-list"
+    EMPTY_MESSAGE "No history yet."
+  }
+}

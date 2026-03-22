@@ -1,0 +1,225 @@
+# =============================================================================
+# DSL1 Ontology Template
+# =============================================================================
+# HOW TO USE:
+#   1. Replace every occurrence of YOUR_DOMAIN with your domain identifier
+#      (lowercase, hyphenated: e.g., "book-library", "employee-hours")
+#   2. Replace ONTOLOGY_LABEL with a human-readable name for the ontology
+#   3. Replace ONTOLOGY_DESCRIPTION with one sentence about what it models
+#   4. Fill in the CLASS, PROPERTY, and INDIVIDUAL sections below
+#   5. Delete any template blocks you do not need
+#   6. Delete all comments starting with "# TODO" when you are done
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Prefix Declarations
+# -----------------------------------------------------------------------------
+# TODO: Keep all standard prefixes. Replace YOUR_DOMAIN in the domain prefix.
+
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# TODO: Replace YOUR_DOMAIN with your domain identifier
+@prefix :      <https://dsl1.example.org/YOUR_DOMAIN#> .
+
+# -----------------------------------------------------------------------------
+# Ontology Declaration
+# -----------------------------------------------------------------------------
+# TODO: Replace YOUR_DOMAIN, ONTOLOGY_LABEL, ONTOLOGY_DESCRIPTION
+
+<https://dsl1.example.org/YOUR_DOMAIN>
+    a owl:Ontology ;
+    rdfs:label      "ONTOLOGY_LABEL"@en ;
+    rdfs:comment    "ONTOLOGY_DESCRIPTION"@en ;
+    dcterms:creator "DSL1"^^xsd:string ;
+    owl:versionInfo "1.0.0"^^xsd:string .
+
+
+# =============================================================================
+# SECTION 1 — CLASSES
+# =============================================================================
+# Template for each class. Repeat this block once per class.
+# Class names must be UpperCamelCase.
+# -----------------------------------------------------------------------------
+
+# TODO: Replace CLASS_NAME_1, CLASS_LABEL_1, CLASS_DESCRIPTION_1
+:CLASS_NAME_1
+    a owl:Class ;
+    rdfs:label   "CLASS_LABEL_1"@en ;
+    rdfs:comment "CLASS_DESCRIPTION_1"@en .
+
+# TODO: Subclass example — remove rdfs:subClassOf if not needed
+:CLASS_NAME_2
+    a owl:Class ;
+    rdfs:label      "CLASS_LABEL_2"@en ;
+    rdfs:comment    "CLASS_DESCRIPTION_2"@en ;
+    rdfs:subClassOf :CLASS_NAME_1 .
+
+# TODO: Add more classes by repeating the block above
+# :CLASS_NAME_3 a owl:Class ; ...
+
+
+# =============================================================================
+# SECTION 2 — DATATYPE PROPERTIES
+# =============================================================================
+# Template for scalar (string, integer, decimal, boolean, dateTime) properties.
+# Property names must be lowerCamelCase.
+# Group properties by the class they belong to (rdfs:domain).
+# -----------------------------------------------------------------------------
+
+# --- Properties of CLASS_NAME_1 ---
+
+# TODO: Replace PROP_NAME_1, PROP_LABEL_1, CLASS_NAME_1, and the xsd: range type
+:PROP_NAME_1
+    a owl:DatatypeProperty ;
+    rdfs:label   "PROP_LABEL_1"@en ;
+    rdfs:domain  :CLASS_NAME_1 ;
+    rdfs:range   xsd:string .
+
+# TODO: Unique/functional property (has at most one value per individual)
+:PROP_NAME_2
+    a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:label   "PROP_LABEL_2 (unique identifier)"@en ;
+    rdfs:domain  :CLASS_NAME_1 ;
+    rdfs:range   xsd:string .
+
+# Common xsd: range types — choose the appropriate one:
+#   xsd:string        — text
+#   xsd:integer       — whole number
+#   xsd:decimal       — floating-point number
+#   xsd:boolean       — true / false
+#   xsd:dateTime      — ISO 8601 timestamp  (e.g., "2024-03-22T10:00:00"^^xsd:dateTime)
+#   xsd:date          — calendar date       (e.g., "2024-03-22"^^xsd:date)
+#   xsd:anyURI        — URL / URI string
+
+# TODO: Add properties for each additional class
+# :PROP_FOR_CLASS_2 a owl:DatatypeProperty ; rdfs:domain :CLASS_NAME_2 ; rdfs:range xsd:integer .
+
+
+# =============================================================================
+# SECTION 3 — OBJECT PROPERTIES
+# =============================================================================
+# Template for relationships between classes (edges in the knowledge graph).
+# -----------------------------------------------------------------------------
+
+# TODO: Replace RELATION_NAME, RELATION_LABEL, DOMAIN_CLASS, RANGE_CLASS
+:RELATION_NAME
+    a owl:ObjectProperty ;
+    rdfs:label   "RELATION_LABEL"@en ;
+    rdfs:domain  :DOMAIN_CLASS ;
+    rdfs:range   :RANGE_CLASS .
+
+# TODO: Bidirectional relationship — add owl:inverseOf on the reverse property
+:INVERSE_RELATION_NAME
+    a owl:ObjectProperty ;
+    rdfs:label    "INVERSE_RELATION_LABEL"@en ;
+    rdfs:domain   :RANGE_CLASS ;
+    rdfs:range    :DOMAIN_CLASS ;
+    owl:inverseOf :RELATION_NAME .
+
+# TODO: Functional object property (each subject has at most one related object)
+:FUNCTIONAL_RELATION
+    a owl:ObjectProperty, owl:FunctionalProperty ;
+    rdfs:label  "FUNCTIONAL_RELATION_LABEL"@en ;
+    rdfs:domain :CLASS_NAME_1 ;
+    rdfs:range  :CLASS_NAME_2 .
+
+# TODO: Add more object properties as needed
+
+
+# =============================================================================
+# SECTION 4 — ENUMERATION / STATUS CLASSES AND INDIVIDUALS
+# =============================================================================
+# Use this section for fixed sets of values (statuses, categories, types).
+# The class acts as the "enum type"; each individual is one enum value.
+# -----------------------------------------------------------------------------
+
+# TODO: Replace STATUS_CLASS, STATUS_LABEL, STATUS_DESCRIPTION
+:STATUS_CLASS
+    a owl:Class ;
+    rdfs:label   "STATUS_LABEL"@en ;
+    rdfs:comment "STATUS_DESCRIPTION — Instances represent allowed status values."@en .
+
+# TODO: Add a property to attach this status to another class
+:hasStatus
+    a owl:ObjectProperty, owl:FunctionalProperty ;
+    rdfs:label  "has status"@en ;
+    rdfs:domain :CLASS_NAME_1 ;
+    rdfs:range  :STATUS_CLASS .
+
+# TODO: Define each enum value as an individual
+:STATUS_INDIVIDUAL_1
+    a :STATUS_CLASS ;
+    rdfs:label   "STATUS_INDIVIDUAL_LABEL_1"@en ;
+    :PROP_NAME_1 "STATUS_CODE_1"^^xsd:string .
+
+:STATUS_INDIVIDUAL_2
+    a :STATUS_CLASS ;
+    rdfs:label   "STATUS_INDIVIDUAL_LABEL_2"@en ;
+    :PROP_NAME_1 "STATUS_CODE_2"^^xsd:string .
+
+# TODO: Repeat for each status/category value
+
+
+# =============================================================================
+# SECTION 5 — SEED / REFERENCE INDIVIDUALS
+# =============================================================================
+# Use this section for individuals that must always exist in the data store
+# (e.g., default categories, admin users, system-level records).
+# Individual IDs use lowerCamelCase or kebab-case.
+# -----------------------------------------------------------------------------
+
+# TODO: Replace individualId, CLASS_NAME_1, and property values
+:individualId
+    a :CLASS_NAME_1 ;
+    rdfs:label   "Display Label"@en ;
+    :PROP_NAME_2 "unique-id-value"^^xsd:string ;
+    :PROP_NAME_1 "Example seed value"^^xsd:string .
+
+# TODO: Add more seed individuals as needed
+
+
+# =============================================================================
+# SECTION 6 — SHACL SHAPES (optional, for validation)
+# =============================================================================
+# Uncomment and fill in if you want runtime validation of data integrity.
+# Requires @prefix sh: <http://www.w3.org/ns/shacl#> .
+# -----------------------------------------------------------------------------
+
+# @prefix sh: <http://www.w3.org/ns/shacl#> .
+#
+# :CLASS_NAME_1Shape
+#     a sh:NodeShape ;
+#     sh:targetClass :CLASS_NAME_1 ;
+#     sh:property [
+#         sh:path     :PROP_NAME_2 ;
+#         sh:minCount 1 ;
+#         sh:maxCount 1 ;
+#         sh:datatype xsd:string ;
+#         sh:message  "PROP_NAME_2 is required and must be a string."@en ;
+#     ] ;
+#     sh:property [
+#         sh:path     :PROP_NAME_1 ;
+#         sh:minCount 1 ;
+#         sh:datatype xsd:string ;
+#         sh:message  "PROP_NAME_1 is required."@en ;
+#     ] .
+
+
+# =============================================================================
+# END OF TEMPLATE
+# =============================================================================
+# Checklist before saving:
+#   [ ] All YOUR_DOMAIN tokens replaced
+#   [ ] All CLASS_NAME tokens replaced
+#   [ ] All PROP_NAME tokens replaced
+#   [ ] All rdfs:label values are meaningful English phrases
+#   [ ] All rdfs:comment values explain the purpose of the element
+#   [ ] xsd: range types match the actual data type of each property
+#   [ ] Seed individuals have all required properties
+#   [ ] No TODO comments remain (delete them when done)
+# =============================================================================

@@ -1,0 +1,325 @@
+@base <https://github.com/bpmbpm/DSL1/ontology/inventory#> .
+
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix dsl:   <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix ui:    <https://github.com/bpmbpm/DSL1/ontology/ui#> .
+@prefix inv:   <https://github.com/bpmbpm/DSL1/ontology/inventory#> .
+@prefix dc:    <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# Ontology Declaration
+# ---------------------------------------------------------------------------
+
+<https://github.com/bpmbpm/DSL1/ontology/inventory>
+    a owl:Ontology ;
+    owl:imports <https://github.com/bpmbpm/DSL1/ontology> ;
+    owl:versionIRI <https://github.com/bpmbpm/DSL1/ontology/inventory/1.0> ;
+    owl:versionInfo "1.0.0" ;
+    dc:title "DSL1 Inventory Management Ontology" ;
+    dc:description "OWL/RDF ontology for an inventory management system built with the DSL1 system. Defines classes for products, categories, stock entries, storage locations and suppliers, together with all required properties and seed-data individuals." ;
+    dc:creator "DSL1 Project" ;
+    dcterms:created "2026-01-01"^^xsd:date ;
+    dcterms:modified "2026-03-22"^^xsd:date ;
+    rdfs:comment "Named graph for quad-store storage: <inventory>" .
+
+# ---------------------------------------------------------------------------
+# Classes
+# ---------------------------------------------------------------------------
+
+inv:Product
+    a owl:Class ;
+    rdfs:label "Product" ;
+    rdfs:comment "A physical or digital item that is stocked and traded.  Each Product has exactly one Category and at most one primary Supplier." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "A uniquely coded tradeable item held in inventory." ;
+    dsl:dslGraph "inventory" ;
+    dsl:dslFunction "getProducts" ;
+    dsl:dslUIComponent "LISTVIEW" .
+
+inv:Category
+    a owl:Class ;
+    rdfs:label "Category" ;
+    rdfs:comment "A named grouping used to classify Products. Categories are hierarchical: a Category may have a parent Category." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "A hierarchical product classification node." ;
+    dsl:dslGraph "inventory" ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+inv:StockEntry
+    a owl:Class ;
+    rdfs:label "Stock Entry" ;
+    rdfs:comment "A record linking a Product to a Location with a current quantity on hand.  One StockEntry exists per (Product, Location) pair." ;
+    rdfs:subClassOf dsl:Value ;
+    skos:definition "A quantity-at-location record for a product." ;
+    dsl:dslGraph "inventory" ;
+    dsl:dslFunction "getStockEntries" ;
+    dsl:dslUIComponent "LISTVIEW" .
+
+inv:Location
+    a owl:Class ;
+    rdfs:label "Location" ;
+    rdfs:comment "A named physical or logical storage location, e.g. a warehouse shelf, a bin, or a virtual location such as 'In Transit'." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "A named place where products can be stored." ;
+    dsl:dslGraph "inventory" ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+inv:Supplier
+    a owl:Class ;
+    rdfs:label "Supplier" ;
+    rdfs:comment "An external organisation that provides Products.  A Product may have multiple Suppliers but exactly one primary Supplier." ;
+    rdfs:subClassOf dsl:Entity ;
+    skos:definition "An external entity that supplies products to the inventory." ;
+    dsl:dslGraph "inventory" ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+inv:StockMovement
+    a owl:Class ;
+    rdfs:label "Stock Movement" ;
+    rdfs:comment "An immutable audit-trail record of a change in quantity for a (Product, Location) pair. Movements are appended by updateStock() and are never modified." ;
+    rdfs:subClassOf dsl:Value ;
+    skos:definition "An auditable record of a stock quantity change." ;
+    dsl:dslGraph "inventory" ;
+    dsl:dslFunction "getMovements" ;
+    dsl:dslUIComponent "LISTVIEW" .
+
+# ---------------------------------------------------------------------------
+# Object Properties
+# ---------------------------------------------------------------------------
+
+inv:hasCategory
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has category" ;
+    rdfs:comment "Classifies a Product under exactly one Category." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  inv:Category .
+
+inv:hasParentCategory
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has parent category" ;
+    rdfs:comment "Relates a Category to its parent in the classification hierarchy." ;
+    rdfs:domain inv:Category ;
+    rdfs:range  inv:Category .
+
+inv:hasSupplier
+    a owl:ObjectProperty ;
+    rdfs:label "has supplier" ;
+    rdfs:comment "Relates a Product to one of its Suppliers.  Use inv:hasPrimarySupplier for the preferred source." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  inv:Supplier .
+
+inv:hasPrimarySupplier
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has primary supplier" ;
+    rdfs:comment "Relates a Product to its default/preferred Supplier." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  inv:Supplier ;
+    rdfs:subPropertyOf inv:hasSupplier .
+
+inv:storedAt
+    a owl:ObjectProperty ;
+    rdfs:label "stored at" ;
+    rdfs:comment "Relates a StockEntry to the Location where the stock is held." ;
+    rdfs:domain inv:StockEntry ;
+    rdfs:range  inv:Location .
+
+inv:stockEntryFor
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "stock entry for" ;
+    rdfs:comment "Relates a StockEntry back to its Product." ;
+    rdfs:domain inv:StockEntry ;
+    rdfs:range  inv:Product .
+
+inv:movementFor
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "movement for" ;
+    rdfs:comment "Relates a StockMovement to the StockEntry it modifies." ;
+    rdfs:domain inv:StockMovement ;
+    rdfs:range  inv:StockEntry .
+
+# ---------------------------------------------------------------------------
+# Data Properties
+# ---------------------------------------------------------------------------
+
+inv:productCode
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "product code" ;
+    rdfs:comment "A unique alphanumeric code identifying the product, e.g. 'SKU-001', used in barcodes and PO references." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  xsd:string .
+
+inv:productName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "product name" ;
+    rdfs:comment "The human-readable display name of the product." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  xsd:string .
+
+inv:productDescription
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "product description" ;
+    rdfs:comment "A free-text description of the product's features and intended use." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  xsd:string .
+
+inv:unitPrice
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "unit price" ;
+    rdfs:comment "The standard selling price per unit of the product, expressed as a non-negative xsd:decimal." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  xsd:decimal .
+
+inv:reorderThreshold
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "reorder threshold" ;
+    rdfs:comment "The minimum total quantity-on-hand at which a reorder alert should be raised.  Used by getLowStockProducts()." ;
+    rdfs:domain inv:Product ;
+    rdfs:range  xsd:integer .
+
+inv:quantity
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "quantity" ;
+    rdfs:comment "The current number of units held in the StockEntry's Location.  Always non-negative; a negative delta in updateStock() reduces this value." ;
+    rdfs:domain inv:StockEntry ;
+    rdfs:range  xsd:integer .
+
+inv:categoryName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "category name" ;
+    rdfs:comment "The display name of a Category." ;
+    rdfs:domain inv:Category ;
+    rdfs:range  xsd:string .
+
+inv:locationName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "location name" ;
+    rdfs:comment "The display name of a storage Location." ;
+    rdfs:domain inv:Location ;
+    rdfs:range  xsd:string .
+
+inv:locationCode
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "location code" ;
+    rdfs:comment "A short code identifying the storage Location, e.g. 'WH-A1-S3' for Warehouse A, Aisle 1, Shelf 3." ;
+    rdfs:domain inv:Location ;
+    rdfs:range  xsd:string .
+
+inv:supplierName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "supplier name" ;
+    rdfs:comment "The trading name of a Supplier organisation." ;
+    rdfs:domain inv:Supplier ;
+    rdfs:range  xsd:string .
+
+inv:supplierContact
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "supplier contact" ;
+    rdfs:comment "A contact email or phone number for the Supplier's account manager." ;
+    rdfs:domain inv:Supplier ;
+    rdfs:range  xsd:string .
+
+inv:movementDelta
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "movement delta" ;
+    rdfs:comment "The signed integer change in quantity recorded by this StockMovement.  Positive = stock received; negative = stock consumed or written off." ;
+    rdfs:domain inv:StockMovement ;
+    rdfs:range  xsd:integer .
+
+inv:movementTimestamp
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "movement timestamp" ;
+    rdfs:comment "The UTC dateTime at which the StockMovement was recorded." ;
+    rdfs:domain inv:StockMovement ;
+    rdfs:range  xsd:dateTime .
+
+inv:movementNote
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "movement note" ;
+    rdfs:comment "An optional free-text note explaining the reason for the stock movement, e.g. 'Goods received on PO#1234'." ;
+    rdfs:domain inv:StockMovement ;
+    rdfs:range  xsd:string .
+
+# ---------------------------------------------------------------------------
+# Category Individuals (seed data)
+# ---------------------------------------------------------------------------
+
+inv:catElectronics
+    a inv:Category , owl:NamedIndividual ;
+    rdfs:label "Electronics" ;
+    inv:categoryName "Electronics" ;
+    dsl:order 1 .
+
+inv:catComponents
+    a inv:Category , owl:NamedIndividual ;
+    rdfs:label "Components" ;
+    inv:categoryName "Components" ;
+    inv:hasParentCategory inv:catElectronics ;
+    dsl:order 2 .
+
+inv:catPeripherals
+    a inv:Category , owl:NamedIndividual ;
+    rdfs:label "Peripherals" ;
+    inv:categoryName "Peripherals" ;
+    inv:hasParentCategory inv:catElectronics ;
+    dsl:order 3 .
+
+inv:catOfficeSupplies
+    a inv:Category , owl:NamedIndividual ;
+    rdfs:label "Office Supplies" ;
+    inv:categoryName "Office Supplies" ;
+    dsl:order 4 .
+
+inv:catFurniture
+    a inv:Category , owl:NamedIndividual ;
+    rdfs:label "Furniture" ;
+    inv:categoryName "Furniture" ;
+    dsl:order 5 .
+
+# ---------------------------------------------------------------------------
+# Location Individuals (seed data)
+# ---------------------------------------------------------------------------
+
+inv:locationWarehouseA
+    a inv:Location , owl:NamedIndividual ;
+    rdfs:label "Warehouse A" ;
+    inv:locationName "Warehouse A" ;
+    inv:locationCode "WH-A" .
+
+inv:locationWarehouseB
+    a inv:Location , owl:NamedIndividual ;
+    rdfs:label "Warehouse B" ;
+    inv:locationName "Warehouse B" ;
+    inv:locationCode "WH-B" .
+
+inv:locationInTransit
+    a inv:Location , owl:NamedIndividual ;
+    rdfs:label "In Transit" ;
+    inv:locationName "In Transit" ;
+    inv:locationCode "TRANSIT" .
+
+inv:locationReturns
+    a inv:Location , owl:NamedIndividual ;
+    rdfs:label "Returns Bay" ;
+    inv:locationName "Returns Bay" ;
+    inv:locationCode "RETURNS" .
+
+# ---------------------------------------------------------------------------
+# Supplier Individuals (seed data)
+# ---------------------------------------------------------------------------
+
+inv:supplierAlpha
+    a inv:Supplier , owl:NamedIndividual ;
+    rdfs:label "Alpha Supplies Ltd" ;
+    inv:supplierName    "Alpha Supplies Ltd" ;
+    inv:supplierContact "orders@alphasupplies.example.com" .
+
+inv:supplierBeta
+    a inv:Supplier , owl:NamedIndividual ;
+    rdfs:label "Beta Components GmbH" ;
+    inv:supplierName    "Beta Components GmbH" ;
+    inv:supplierContact "sales@betacomponents.example.de" .

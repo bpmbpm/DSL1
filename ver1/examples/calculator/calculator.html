@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSL1 Calculator</title>
+<!-- N3.js for RDF triple store -->
+<script src="https://unpkg.com/n3@1.17.2/browser/n3.min.js"></script>
+<style>
+  /* ── Design tokens ────────────────────────────────────────────────────── */
+  :root {
+    --primary:        #4a6cf7;
+    --primary-dark:   #3a5ce5;
+    --secondary:      #6c757d;
+    --danger:         #dc3545;
+    --danger-dark:    #c82333;
+    --bg:             #f0f2ff;
+    --surface:        #ffffff;
+    --surface-alt:    #f8f9fa;
+    --border:         #dee2e6;
+    --text:           #212529;
+    --text-muted:     #6c757d;
+    --radius:         8px;
+    --shadow:         0 4px 16px rgba(74,108,247,0.10);
+    --font:           system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  /* ── Reset ────────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 64px;
+  }
+
+  /* ── Main card ────────────────────────────────────────────────────────── */
+  .calculator-window {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px 32px 32px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .calculator-window h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--bg);
+    letter-spacing: -0.3px;
+  }
+
+  /* ── Display panel ────────────────────────────────────────────────────── */
+  .display-panel {
+    background: var(--surface-alt);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0;
+    margin-bottom: 20px;
+  }
+
+  .display-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 8px 12px 4px;
+  }
+
+  #display {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    font-weight: 600;
+    text-align: right;
+    padding: 4px 14px 12px;
+    color: var(--text);
+    outline: none;
+    letter-spacing: -0.5px;
+  }
+
+  #display.error { color: var(--danger); font-size: 16px; }
+
+  /* ── Form fields ──────────────────────────────────────────────────────── */
+  .field-group { margin-bottom: 16px; }
+
+  .field-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .field-group input[type="number"],
+  .field-group select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 15px;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .field-group select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%236c757d'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  .field-group input:focus, .field-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(74,108,247,0.15);
+  }
+
+  /* ── Two-column operand layout ────────────────────────────────────────── */
+  .operands-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── Button row ───────────────────────────────────────────────────────── */
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0 4px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 22px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.08s, box-shadow 0.15s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn:active { transform: translateY(1px); }
+
+  .btn-primary   { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(74,108,247,0.25); }
+  .btn-primary:hover   { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(74,108,247,0.35); }
+  .btn-secondary { background: var(--secondary); color: #fff; }
+  .btn-secondary:hover { background: #5a6268; }
+  .btn-danger    { background: var(--danger); color: #fff; }
+  .btn-danger:hover    { background: var(--danger-dark); }
+
+  /* ── Stats label ──────────────────────────────────────────────────────── */
+  .stats-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 12px 0 8px;
+    min-height: 18px;
+  }
+
+  /* ── List view sections ───────────────────────────────────────────────── */
+  .listview-section {
+    margin-top: 28px;
+  }
+
+  .listview-section h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  table.listview {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  table.listview th {
+    background: var(--surface-alt);
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  table.listview td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  table.listview tr:last-child td { border-bottom: none; }
+  table.listview tr:hover td { background: #f5f7ff; }
+
+  .empty-msg {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+  }
+
+  /* ── Divider ──────────────────────────────────────────────────────────── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  /* ── Responsive ───────────────────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .operands-row { grid-template-columns: 1fr; }
+    .calculator-window { padding: 20px 16px 24px; }
+    #display { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="dsl-app">
+  <div class="calculator-window">
+    <h2>Calculator</h2>
+
+    <!-- Display panel -->
+    <div class="display-panel">
+      <div class="display-label">Result</div>
+      <input id="display" type="text" readonly placeholder="0">
+    </div>
+
+    <!-- Operand inputs -->
+    <div class="operands-row">
+      <div class="field-group">
+        <label for="operand1">First Number</label>
+        <input id="operand1" type="number" placeholder="Enter first number" step="any">
+      </div>
+      <div class="field-group">
+        <label for="operand2">Second Number</label>
+        <input id="operand2" type="number" placeholder="Enter second number" step="any">
+      </div>
+    </div>
+
+    <!-- Operation dropdown -->
+    <div class="field-group">
+      <label for="operationType">Operation</label>
+      <select id="operationType">
+        <option value="">-- select operation --</option>
+        <!-- Populated from N3 store after ontology load -->
+      </select>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="button-row">
+      <button id="calculateBtn" class="btn btn-primary" onclick="handleCalculate()">Calculate</button>
+      <button id="clearBtn"     class="btn btn-secondary" onclick="handleClear()">Clear</button>
+      <button id="clearHistoryBtn" class="btn btn-danger" onclick="handleClearHistory()">Clear History</button>
+    </div>
+
+    <!-- Stats label -->
+    <div id="statsLabel" class="stats-label"></div>
+
+    <hr class="divider">
+
+    <!-- History table -->
+    <div class="listview-section">
+      <h3>Calculation History</h3>
+      <table class="listview" id="historyView">
+        <thead>
+          <tr>
+            <th>Operand 1</th>
+            <th style="text-align:center">Op</th>
+            <th>Operand 2</th>
+            <th style="text-align:center">=</th>
+            <th>Result</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="6" class="empty-msg">No calculations yet. Enter numbers and press Calculate.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Frequency table -->
+    <div class="listview-section">
+      <h3>Operation Frequency</h3>
+      <table class="listview" id="frequencyView">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th style="text-align:center">Symbol</th>
+            <th style="text-align:right">Count</th>
+          </tr>
+        </thead>
+        <tbody id="frequencyBody">
+          <tr><td colspan="3" class="empty-msg">No history yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Generated by DSL1 Translator
+// Source: calculator.dsl + calculator.uidsl + calculator.ttl
+// ============================================================
+
+const __N3 = window.N3;
+const __store = new __N3.Store();
+const __prefixes = {};
+const __storeListeners = [];
+
+function __notifyListeners() {
+  __storeListeners.forEach(function(fn) { try { fn(); } catch(e) { console.warn(e); } });
+}
+
+// ── Ontology (embedded Turtle) ─────────────────────────────────────────────
+const __ontologyTurtle = `
+@base <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix dsl:  <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+
+calc:addOperation
+    a calc:Operation ;
+    calc:operationName   "add" ;
+    calc:operationSymbol "+" ;
+    dsl:order            "1"^^xsd:integer .
+
+calc:subtractOperation
+    a calc:Operation ;
+    calc:operationName   "subtract" ;
+    calc:operationSymbol "-" ;
+    dsl:order            "2"^^xsd:integer .
+
+calc:multiplyOperation
+    a calc:Operation ;
+    calc:operationName   "multiply" ;
+    calc:operationSymbol "*" ;
+    dsl:order            "3"^^xsd:integer .
+
+calc:divideOperation
+    a calc:Operation ;
+    calc:operationName   "divide" ;
+    calc:operationSymbol "/" ;
+    dsl:order            "4"^^xsd:integer .
+`;
+
+// ── Prefix map ─────────────────────────────────────────────────────────────
+const __calcNS  = 'https://github.com/bpmbpm/DSL1/ontology/calculator#';
+const __dslNS   = 'https://github.com/bpmbpm/DSL1/ontology#';
+const __rdfType = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const __xsdNS   = 'http://www.w3.org/2001/XMLSchema#';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function __namedNode(iri)       { return __N3.DataFactory.namedNode(iri); }
+function __literal(val, dtype)  { return dtype ? __N3.DataFactory.literal(String(val), __namedNode(dtype)) : __N3.DataFactory.literal(String(val)); }
+function __quad(s, p, o, g)     { return __N3.DataFactory.quad(s, p, o, g); }
+function __graphNode(name)      { return __namedNode('https://github.com/bpmbpm/DSL1/graphs/' + name); }
+const __calcGraph = __graphNode('calculator');
+
+function __termVal(t) {
+  if (!t) return null;
+  return t.value !== undefined ? t.value : t;
+}
+
+// ── Ontology load ──────────────────────────────────────────────────────────
+function __loadOntology() {
+  return new Promise(function(resolve) {
+    var parser = new __N3.Parser({ baseIRI: 'https://github.com/bpmbpm/DSL1/ontology/calculator#' });
+    parser.parse(__ontologyTurtle, function(err, quad, pfx) {
+      if (err) { console.warn('Turtle parse warning:', err); resolve(); return; }
+      if (quad) {
+        // Store all ontology quads in the calculator graph
+        __store.addQuad(__quad(quad.subject, quad.predicate, quad.object, __calcGraph));
+      } else {
+        if (pfx) Object.assign(__prefixes, pfx);
+        resolve();
+      }
+    });
+  });
+}
+
+// ── DSL Functions (translated from calculator.dsl) ─────────────────────────
+
+/**
+ * getOperations()
+ * Queries the store for all calc:Operation individuals, ordered by dsl:order.
+ * Returns array of { op, label, symbol, orderVal }
+ */
+function getOperations() {
+  var opType  = __namedNode(__calcNS + 'Operation');
+  var opName  = __namedNode(__calcNS + 'operationName');
+  var opSym   = __namedNode(__calcNS + 'operationSymbol');
+  var dslOrd  = __namedNode(__dslNS  + 'order');
+  var rdfType = __namedNode(__rdfType);
+
+  var ops = [];
+  var subjects = __store.getSubjects(rdfType, opType, __calcGraph);
+  subjects.forEach(function(subj) {
+    var nameQuads  = __store.getQuads(subj, opName,  null, __calcGraph);
+    var symQuads   = __store.getQuads(subj, opSym,   null, __calcGraph);
+    var ordQuads   = __store.getQuads(subj, dslOrd,  null, __calcGraph);
+    ops.push({
+      op:       subj,
+      label:    nameQuads[0]  ? nameQuads[0].object  : __literal(''),
+      symbol:   symQuads[0]   ? symQuads[0].object   : __literal(''),
+      orderVal: ordQuads[0]   ? ordQuads[0].object   : __literal('0'),
+    });
+  });
+
+  ops.sort(function(a, b) {
+    return parseInt(__termVal(a.orderVal), 10) - parseInt(__termVal(b.orderVal), 10);
+  });
+  return ops;
+}
+
+/**
+ * getOperationByName(opName)
+ * Returns array of { op, symbol } for a single operation matched by name.
+ */
+function getOperationByName(opName) {
+  var opType  = __namedNode(__calcNS + 'Operation');
+  var opNameP = __namedNode(__calcNS + 'operationName');
+  var opSymP  = __namedNode(__calcNS + 'operationSymbol');
+  var rdfType = __namedNode(__rdfType);
+  var result  = [];
+  var subjects = __store.getSubjects(__namedNode(__rdfType), opType, __calcGraph);
+  subjects.forEach(function(subj) {
+    var nameQuads = __store.getQuads(subj, opNameP, null, __calcGraph);
+    nameQuads.forEach(function(nq) {
+      if (__termVal(nq.object) === opName) {
+        var symQuads = __store.getQuads(subj, opSymP, null, __calcGraph);
+        result.push({ op: subj, symbol: symQuads[0] ? symQuads[0].object : __literal('') });
+      }
+    });
+  });
+  return result.slice(0, 1);
+}
+
+/**
+ * calculate(operand1, operand2, operationType)
+ * Pure arithmetic dispatcher. Returns numeric result or error string.
+ */
+function calculate(operand1, operand2, operationType) {
+  var op1 = parseFloat(operand1);
+  var op2 = parseFloat(operand2);
+
+  if (operand1 === null || operand1 === '' || isNaN(op1)) {
+    return 'Error: Both operands are required';
+  }
+  if (operand2 === null || operand2 === '' || isNaN(op2)) {
+    return 'Error: Both operands are required';
+  }
+  if (operationType === null || operationType === '') {
+    return 'Error: Please select an operation';
+  }
+
+  if (operationType === 'add')      { return op1 + op2; }
+  if (operationType === 'subtract') { return op1 - op2; }
+  if (operationType === 'multiply') { return op1 * op2; }
+  if (operationType === 'divide') {
+    if (op2 === 0) { return 'Error: Division by zero'; }
+    return op1 / op2;
+  }
+  return 'Error: Unknown operation: ' + operationType;
+}
+
+/**
+ * storeResult(operand1, operand2, operationType, result)
+ * Writes a completed calculation as a calc:Result individual into the store.
+ * Returns the resultId IRI string, or null for error strings.
+ */
+function storeResult(operand1, operand2, operationType, result) {
+  if (typeof result === 'string' && result.startsWith('Error')) {
+    return null;
+  }
+
+  var base      = __calcNS;
+  var uid       = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var resultId  = __namedNode(base + 'Result_' + uid);
+  var op1Id     = __namedNode(base + 'Operand_' + uid + '_1');
+  var op2Id     = __namedNode(base + 'Operand_' + uid + '_2');
+  var opMatch   = getOperationByName(operationType);
+  var opIri     = opMatch.length ? opMatch[0].op : __namedNode(base + operationType);
+  var timestamp = new Date().toISOString();
+
+  var rdfType  = __namedNode(__rdfType);
+  var calcNS   = __calcNS;
+
+  function addQ(s, p, o) { __store.addQuad(__quad(s, p, o, __calcGraph)); }
+
+  addQ(resultId, rdfType,                             __namedNode(calcNS + 'Result'));
+  addQ(resultId, __namedNode(calcNS + 'hasOperand1'), op1Id);
+  addQ(resultId, __namedNode(calcNS + 'hasOperand2'), op2Id);
+  addQ(resultId, __namedNode(calcNS + 'hasOperationType'), opIri);
+  addQ(resultId, __namedNode(calcNS + 'resultValue'),      __literal(String(result), __xsdNS + 'decimal'));
+  addQ(resultId, __namedNode(calcNS + 'resultTimestamp'),  __literal(timestamp, __xsdNS + 'dateTime'));
+
+  addQ(op1Id, rdfType,                                __namedNode(calcNS + 'Operand'));
+  addQ(op1Id, __namedNode(calcNS + 'operandValue'),   __literal(String(parseFloat(operand1)), __xsdNS + 'decimal'));
+
+  addQ(op2Id, rdfType,                                __namedNode(calcNS + 'Operand'));
+  addQ(op2Id, __namedNode(calcNS + 'operandValue'),   __literal(String(parseFloat(operand2)), __xsdNS + 'decimal'));
+
+  __notifyListeners();
+  return resultId.value;
+}
+
+/**
+ * getHistory()
+ * Retrieves last 10 calc:Result individuals with all joined fields.
+ * Returns array of { result, op1Val, symbol, op2Val, resultVal, timestamp }
+ */
+function getHistory() {
+  var rdfType   = __namedNode(__rdfType);
+  var calcNS    = __calcNS;
+  var resultCls = __namedNode(calcNS + 'Result');
+  var hasOp1    = __namedNode(calcNS + 'hasOperand1');
+  var hasOp2    = __namedNode(calcNS + 'hasOperand2');
+  var hasOpType = __namedNode(calcNS + 'hasOperationType');
+  var resVal    = __namedNode(calcNS + 'resultValue');
+  var resTime   = __namedNode(calcNS + 'resultTimestamp');
+  var opVal     = __namedNode(calcNS + 'operandValue');
+  var opSym     = __namedNode(calcNS + 'operationSymbol');
+
+  var results = __store.getSubjects(rdfType, resultCls, __calcGraph);
+  var rows = [];
+
+  results.forEach(function(result) {
+    var op1Qs    = __store.getQuads(result, hasOp1,    null, __calcGraph);
+    var op2Qs    = __store.getQuads(result, hasOp2,    null, __calcGraph);
+    var opTypeQs = __store.getQuads(result, hasOpType, null, __calcGraph);
+    var resValQs = __store.getQuads(result, resVal,    null, __calcGraph);
+    var resTimeQs= __store.getQuads(result, resTime,   null, __calcGraph);
+
+    var op1ValQs = op1Qs.length    ? __store.getQuads(op1Qs[0].object, opVal, null, __calcGraph) : [];
+    var op2ValQs = op2Qs.length    ? __store.getQuads(op2Qs[0].object, opVal, null, __calcGraph) : [];
+    var symQs    = opTypeQs.length ? __store.getQuads(opTypeQs[0].object, opSym, null, __calcGraph) : [];
+
+    rows.push({
+      result:    result,
+      op1Val:    op1ValQs[0]  ? op1ValQs[0].object  : __literal(''),
+      symbol:    symQs[0]     ? symQs[0].object      : __literal('?'),
+      op2Val:    op2ValQs[0]  ? op2ValQs[0].object   : __literal(''),
+      resultVal: resValQs[0]  ? resValQs[0].object   : __literal(''),
+      timestamp: resTimeQs[0] ? resTimeQs[0].object  : __literal(''),
+    });
+  });
+
+  // Sort descending by timestamp string
+  rows.sort(function(a, b) {
+    var ta = __termVal(a.timestamp) || '';
+    var tb = __termVal(b.timestamp) || '';
+    return tb < ta ? -1 : tb > ta ? 1 : 0;
+  });
+
+  return rows.slice(0, 10);
+}
+
+/**
+ * getHistoryCount()
+ * Returns array with one object { total: N }
+ */
+function getHistoryCount() {
+  var rdfType   = __namedNode(__rdfType);
+  var resultCls = __namedNode(__calcNS + 'Result');
+  var n = __store.getSubjects(rdfType, resultCls, __calcGraph).length;
+  return [{ total: { value: String(n) } }];
+}
+
+/**
+ * clearHistory()
+ * Removes all calc:Result and calc:Operand individuals from the store.
+ */
+function clearHistory() {
+  var rdfType   = __namedNode(__rdfType);
+  var calcNS    = __calcNS;
+  var resultCls = __namedNode(calcNS + 'Result');
+  var operandCls= __namedNode(calcNS + 'Operand');
+
+  // Remove all Result quads
+  var resultSubjects = __store.getSubjects(rdfType, resultCls, __calcGraph);
+  resultSubjects.forEach(function(s) {
+    __store.getQuads(s, null, null, __calcGraph).forEach(function(q) { __store.removeQuad(q); });
+    // Also remove quad that asserts type
+    __store.removeQuad(__quad(s, rdfType, resultCls, __calcGraph));
+  });
+
+  // Remove all Operand quads
+  var operandSubjects = __store.getSubjects(rdfType, operandCls, __calcGraph);
+  operandSubjects.forEach(function(s) {
+    __store.getQuads(s, null, null, __calcGraph).forEach(function(q) { __store.removeQuad(q); });
+  });
+
+  __notifyListeners();
+  return true;
+}
+
+/**
+ * formatResult(value, decimalPlaces)
+ * Formats a numeric result, stripping trailing zeros.
+ */
+function formatResult(value, decimalPlaces) {
+  if (typeof value === 'string') { return value; }
+  var places = (decimalPlaces === null || decimalPlaces === undefined) ? 10 : decimalPlaces;
+  var rounded = parseFloat(value.toFixed(places));
+  // Remove trailing zeros after decimal point
+  var str = String(rounded);
+  return str;
+}
+
+/**
+ * getOperationFrequency()
+ * Returns per-operation counts from the history.
+ */
+function getOperationFrequency() {
+  var calcNS    = __calcNS;
+  var rdfType   = __namedNode(__rdfType);
+  var resultCls = __namedNode(calcNS + 'Result');
+  var hasOpType = __namedNode(calcNS + 'hasOperationType');
+  var opName    = __namedNode(calcNS + 'operationName');
+  var opSym     = __namedNode(calcNS + 'operationSymbol');
+
+  var results = __store.getSubjects(rdfType, resultCls, __calcGraph);
+  var counts  = {};
+
+  results.forEach(function(result) {
+    var opTypeQs = __store.getQuads(result, hasOpType, null, __calcGraph);
+    if (!opTypeQs.length) return;
+    var opIri = opTypeQs[0].object;
+    var key   = opIri.value;
+    if (!counts[key]) {
+      var nameQs = __store.getQuads(opIri, opName, null, __calcGraph);
+      var symQs  = __store.getQuads(opIri, opSym,  null, __calcGraph);
+      counts[key] = {
+        opName: nameQs[0] ? nameQs[0].object : __literal(''),
+        symbol: symQs[0]  ? symQs[0].object  : __literal(''),
+        count:  0,
+      };
+    }
+    counts[key].count++;
+  });
+
+  return Object.values(counts)
+    .sort(function(a, b) { return b.count - a.count; })
+    .map(function(c) { return { opName: c.opName, symbol: c.symbol, count: { value: String(c.count) } }; });
+}
+
+// ── UI Refresh Functions ────────────────────────────────────────────────────
+
+function refreshOperationDropdown() {
+  var sel  = document.getElementById('operationType');
+  var prev = sel.value;
+  // Keep the placeholder option
+  while (sel.options.length > 1) sel.remove(1);
+  var ops  = getOperations();
+  ops.forEach(function(row) {
+    var opt       = document.createElement('option');
+    opt.value     = __termVal(row.label);   // e.g. "add"
+    opt.textContent = __termVal(row.label).charAt(0).toUpperCase() + __termVal(row.label).slice(1)
+                    + '  (' + __termVal(row.symbol) + ')';
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+function refreshHistoryTable() {
+  var tbody = document.getElementById('historyBody');
+  tbody.innerHTML = '';
+  var rows = getHistory();
+
+  if (!rows.length) {
+    var tr = tbody.insertRow();
+    var td = tr.insertCell();
+    td.colSpan  = 6;
+    td.className = 'empty-msg';
+    td.textContent = 'No calculations yet. Enter numbers and press Calculate.';
+    return;
+  }
+
+  rows.forEach(function(row) {
+    var tr = tbody.insertRow();
+    var ts = __termVal(row.timestamp);
+    var tsDisplay = '';
+    try { tsDisplay = ts ? new Date(ts).toLocaleString() : ''; } catch(e) { tsDisplay = ts; }
+
+    [ __termVal(row.op1Val),
+      __termVal(row.symbol),
+      __termVal(row.op2Val),
+      '=',
+      __termVal(row.resultVal),
+      tsDisplay
+    ].forEach(function(val, idx) {
+      var td = tr.insertCell();
+      td.textContent = val !== null ? val : '';
+      if (idx === 1) td.style.textAlign = 'center';   // Op
+      if (idx === 3) td.style.textAlign = 'center';   // =
+      if (idx === 4) td.style.fontWeight = '600';     // Result
+      if (idx === 5) { td.style.color = '#888'; td.style.fontSize = '12px'; }
+    });
+  });
+}
+
+function refreshFrequencyTable() {
+  var tbody = document.getElementById('frequencyBody');
+  tbody.innerHTML = '';
+  var rows = getOperationFrequency();
+
+  if (!rows.length) {
+    var tr = tbody.insertRow();
+    var td = tr.insertCell();
+    td.colSpan = 3;
+    td.className = 'empty-msg';
+    td.textContent = 'No history yet.';
+    return;
+  }
+
+  rows.forEach(function(row) {
+    var tr = tbody.insertRow();
+    var cells = [
+      { v: __termVal(row.opName), align: 'left' },
+      { v: __termVal(row.symbol), align: 'center' },
+      { v: __termVal(row.count),  align: 'right' },
+    ];
+    cells.forEach(function(c) {
+      var td = tr.insertCell();
+      td.textContent  = c.v || '';
+      td.style.textAlign = c.align;
+    });
+  });
+}
+
+function refreshStatsLabel() {
+  var el   = document.getElementById('statsLabel');
+  var rows = getHistoryCount();
+  var total = rows[0] ? __termVal(rows[0].total) : '0';
+  el.textContent = 'Total calculations: ' + total;
+}
+
+// Register all refresh functions as store listeners
+__storeListeners.push(refreshOperationDropdown);
+__storeListeners.push(refreshHistoryTable);
+__storeListeners.push(refreshFrequencyTable);
+__storeListeners.push(refreshStatsLabel);
+
+// ── Event Handlers (translated from calculator.uidsl ON CLICK blocks) ──────
+
+function handleCalculate() {
+  var op1    = parseFloat(document.getElementById('operand1').value);
+  var op2    = parseFloat(document.getElementById('operand2').value);
+  var opType = document.getElementById('operationType').value;
+  var op1Raw = document.getElementById('operand1').value;
+  var op2Raw = document.getElementById('operand2').value;
+
+  if (op1Raw === null || op1Raw === '' || isNaN(op1)) {
+    alert('Please enter both numbers before calculating.');
+    return;
+  }
+  if (op2Raw === null || op2Raw === '' || isNaN(op2)) {
+    alert('Please enter both numbers before calculating.');
+    return;
+  }
+  if (opType === null || opType === '') {
+    alert('Please select an operation.');
+    return;
+  }
+
+  var rawResult     = calculate(op1, op2, opType);
+  var displayResult = formatResult(rawResult, 10);
+
+  var displayEl = document.getElementById('display');
+  displayEl.value = displayResult;
+
+  if (typeof displayResult === 'string' && displayResult.startsWith('Error')) {
+    displayEl.classList.add('error');
+  } else {
+    displayEl.classList.remove('error');
+    storeResult(op1, op2, opType, rawResult);
+    // storeResult calls __notifyListeners which refreshes tables
+  }
+}
+
+function handleClear() {
+  document.getElementById('operand1').value    = '';
+  document.getElementById('operand2').value    = '';
+  document.getElementById('operationType').value = '';
+  var displayEl = document.getElementById('display');
+  displayEl.value = '';
+  displayEl.classList.remove('error');
+}
+
+function handleClearHistory() {
+  if (confirm('Delete all calculation history?')) {
+    clearHistory();
+    // clearHistory calls __notifyListeners
+  }
+}
+
+// Allow pressing Enter to trigger calculate from number inputs
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    var active = document.activeElement;
+    if (active && (active.id === 'operand1' || active.id === 'operand2' || active.id === 'operationType')) {
+      handleCalculate();
+    }
+  }
+});
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  __loadOntology().then(function() {
+    // Trigger all store listeners to populate dropdowns and tables
+    __notifyListeners();
+  });
+});
+</script>
+</body>
+</html>

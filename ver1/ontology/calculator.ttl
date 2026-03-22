@@ -1,0 +1,317 @@
+@base <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix dsl:   <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix ui:    <https://github.com/bpmbpm/DSL1/ontology/ui#> .
+@prefix calc:  <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+@prefix dc:    <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# Ontology Declaration
+# ---------------------------------------------------------------------------
+
+<https://github.com/bpmbpm/DSL1/ontology/calculator>
+    a owl:Ontology ;
+    owl:imports <https://github.com/bpmbpm/DSL1/ontology> ;
+    owl:versionIRI <https://github.com/bpmbpm/DSL1/ontology/calculator/1.0> ;
+    owl:versionInfo "1.0.0" ;
+    dc:title "DSL1 Calculator Ontology" ;
+    dc:description "OWL/RDF ontology for a four-function calculator application built with the DSL1 system. Defines classes for calculator components, arithmetic operations, operands and results, together with button and display UI individuals." ;
+    dc:creator "DSL1 Project" ;
+    dcterms:created "2026-01-01"^^xsd:date ;
+    dcterms:modified "2026-03-22"^^xsd:date ;
+    rdfs:comment "Named graph for quad-store storage: <calculator>" .
+
+# ---------------------------------------------------------------------------
+# Classes
+# ---------------------------------------------------------------------------
+
+calc:Calculator
+    a owl:Class ;
+    rdfs:label "Calculator" ;
+    rdfs:comment "The top-level application entity. Exactly one instance is expected in the <calculator> graph." ;
+    rdfs:subClassOf dsl:Application ;
+    skos:definition "A four-function arithmetic calculator application." ;
+    dsl:dslGraph "calculator" ;
+    dsl:dslUIComponent "WINDOW" .
+
+calc:Operation
+    a owl:Class ;
+    rdfs:label "Operation" ;
+    rdfs:comment "A supported arithmetic operation (add, subtract, multiply, divide). Individuals are asserted at ontology load time and are immutable." ;
+    rdfs:subClassOf dsl:Process ;
+    skos:definition "An arithmetic operation that accepts two numeric operands and returns a numeric result." ;
+    dsl:dslFunction "calculate" ;
+    dsl:dslUIComponent "DROPDOWN" .
+
+calc:Operand
+    a owl:Class ;
+    rdfs:label "Operand" ;
+    rdfs:comment "A numeric value supplied by the user as input to an Operation." ;
+    rdfs:subClassOf dsl:Value ;
+    skos:definition "A numeric input to a calculator operation." ;
+    dsl:dslUIComponent "FIELD" .
+
+calc:Result
+    a owl:Class ;
+    rdfs:label "Result" ;
+    rdfs:comment "A record of one completed calculation, comprising two operands, an operation type and a numeric outcome. Result instances are appended to the <calculator> graph by the storeResult() PL/SPARQL function and are never modified." ;
+    rdfs:subClassOf dsl:Value ;
+    skos:definition "An immutable record of a completed arithmetic calculation stored in the tripleStore." ;
+    dsl:dslFunction "getHistory" ;
+    dsl:dslUIComponent "LISTVIEW" .
+
+calc:Button
+    a owl:Class ;
+    rdfs:label "Button" ;
+    rdfs:comment "A clickable UI element on the calculator face. Buttons are declared as individuals and mapped to ON CLICK handlers in the UI DSL." ;
+    rdfs:subClassOf ui:Button ;
+    skos:definition "A physical or virtual button on the calculator UI." ;
+    dsl:dslUIComponent "BUTTON" .
+
+calc:Display
+    a owl:Class ;
+    rdfs:label "Display" ;
+    rdfs:comment "The read-only output screen that shows the current result or entry. Exactly one Display individual is expected." ;
+    rdfs:subClassOf ui:Field ;
+    skos:definition "The numeric display panel of the calculator." ;
+    dsl:dslUIComponent "FIELD" .
+
+# ---------------------------------------------------------------------------
+# Object Properties
+# ---------------------------------------------------------------------------
+
+calc:hasOperand1
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has operand 1" ;
+    rdfs:comment "Relates a Result to its first (left-hand) operand." ;
+    rdfs:domain calc:Result ;
+    rdfs:range  calc:Operand .
+
+calc:hasOperand2
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has operand 2" ;
+    rdfs:comment "Relates a Result to its second (right-hand) operand." ;
+    rdfs:domain calc:Result ;
+    rdfs:range  calc:Operand .
+
+calc:hasResult
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has result" ;
+    rdfs:comment "Relates a completed calculation event to its Result individual." ;
+    rdfs:domain calc:Calculator ;
+    rdfs:range  calc:Result .
+
+calc:hasOperationType
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has operation type" ;
+    rdfs:comment "Relates a Result record to the Operation individual that produced it." ;
+    rdfs:domain calc:Result ;
+    rdfs:range  calc:Operation .
+
+calc:hasButton
+    a owl:ObjectProperty ;
+    rdfs:label "has button" ;
+    rdfs:comment "Relates the Calculator to one of its Button individuals." ;
+    rdfs:domain calc:Calculator ;
+    rdfs:range  calc:Button .
+
+calc:hasDisplay
+    a owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:label "has display" ;
+    rdfs:comment "Relates the Calculator to its single Display individual." ;
+    rdfs:domain calc:Calculator ;
+    rdfs:range  calc:Display .
+
+# ---------------------------------------------------------------------------
+# Data Properties
+# ---------------------------------------------------------------------------
+
+calc:buttonLabel
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "button label" ;
+    rdfs:comment "The text string displayed on a Button face, e.g. \"+\", \"-\", \"=\"." ;
+    rdfs:domain calc:Button ;
+    rdfs:range  xsd:string .
+
+calc:operationSymbol
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "operation symbol" ;
+    rdfs:comment "The single-character mathematical symbol for an Operation, e.g. \"+\" for addition." ;
+    rdfs:domain calc:Operation ;
+    rdfs:range  xsd:string .
+
+calc:operationName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "operation name" ;
+    rdfs:comment "A lower-case ASCII keyword identifying the operation type used in PL/SPARQL switch logic, e.g. \"add\", \"subtract\"." ;
+    rdfs:domain calc:Operation ;
+    rdfs:range  xsd:string .
+
+calc:operandValue
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "operand value" ;
+    rdfs:comment "The numeric value held by an Operand instance." ;
+    rdfs:domain calc:Operand ;
+    rdfs:range  xsd:decimal .
+
+calc:resultValue
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "result value" ;
+    rdfs:comment "The numeric outcome of a completed calculation, stored as xsd:decimal to preserve precision." ;
+    rdfs:domain calc:Result ;
+    rdfs:range  xsd:decimal .
+
+calc:resultTimestamp
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "result timestamp" ;
+    rdfs:comment "The UTC dateTime at which the calculation was performed and the Result was stored." ;
+    rdfs:domain calc:Result ;
+    rdfs:range  xsd:dateTime .
+
+calc:displayValue
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "display value" ;
+    rdfs:comment "The string currently shown on the Display panel." ;
+    rdfs:domain calc:Display ;
+    rdfs:range  xsd:string .
+
+calc:buttonOrder
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "button order" ;
+    rdfs:comment "Integer sort key controlling the visual left-to-right, top-to-bottom layout order of buttons." ;
+    rdfs:domain calc:Button ;
+    rdfs:range  xsd:integer .
+
+# ---------------------------------------------------------------------------
+# Operation Individuals
+# ---------------------------------------------------------------------------
+
+calc:addOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Addition" ;
+    rdfs:comment "Adds operand1 and operand2." ;
+    calc:operationName   "add" ;
+    calc:operationSymbol "+" ;
+    dsl:order 1 .
+
+calc:subtractOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Subtraction" ;
+    rdfs:comment "Subtracts operand2 from operand1." ;
+    calc:operationName   "subtract" ;
+    calc:operationSymbol "-" ;
+    dsl:order 2 .
+
+calc:multiplyOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Multiplication" ;
+    rdfs:comment "Multiplies operand1 by operand2." ;
+    calc:operationName   "multiply" ;
+    calc:operationSymbol "*" ;
+    dsl:order 3 .
+
+calc:divideOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Division" ;
+    rdfs:comment "Divides operand1 by operand2. Returns an error string when operand2 is zero." ;
+    calc:operationName   "divide" ;
+    calc:operationSymbol "/" ;
+    dsl:order 4 .
+
+# ---------------------------------------------------------------------------
+# Button Individuals
+# ---------------------------------------------------------------------------
+
+calc:plusButton
+    a calc:Button , owl:NamedIndividual ;
+    rdfs:label "Plus Button" ;
+    rdfs:comment "Activates the addition operation." ;
+    calc:buttonLabel "+" ;
+    calc:buttonOrder 1^^xsd:integer ;
+    dsl:triggers calc:addOperation .
+
+calc:minusButton
+    a calc:Button , owl:NamedIndividual ;
+    rdfs:label "Minus Button" ;
+    rdfs:comment "Activates the subtraction operation." ;
+    calc:buttonLabel "-" ;
+    calc:buttonOrder 2^^xsd:integer ;
+    dsl:triggers calc:subtractOperation .
+
+calc:multiplyButton
+    a calc:Button , owl:NamedIndividual ;
+    rdfs:label "Multiply Button" ;
+    rdfs:comment "Activates the multiplication operation." ;
+    calc:buttonLabel "*" ;
+    calc:buttonOrder 3^^xsd:integer ;
+    dsl:triggers calc:multiplyOperation .
+
+calc:divideButton
+    a calc:Button , owl:NamedIndividual ;
+    rdfs:label "Divide Button" ;
+    rdfs:comment "Activates the division operation." ;
+    calc:buttonLabel "/" ;
+    calc:buttonOrder 4^^xsd:integer ;
+    dsl:triggers calc:divideOperation .
+
+calc:equalsButton
+    a calc:Button , owl:NamedIndividual ;
+    rdfs:label "Equals Button" ;
+    rdfs:comment "Executes the current operation and writes the result to the display and the tripleStore." ;
+    calc:buttonLabel "=" ;
+    calc:buttonOrder 5^^xsd:integer ;
+    dsl:triggers calc:storeResultProcess .
+
+calc:clearButton
+    a calc:Button , owl:NamedIndividual ;
+    rdfs:label "Clear Button" ;
+    rdfs:comment "Resets all input fields and the display to empty." ;
+    calc:buttonLabel "C" ;
+    calc:buttonOrder 6^^xsd:integer .
+
+# ---------------------------------------------------------------------------
+# Display Individual
+# ---------------------------------------------------------------------------
+
+calc:mainDisplay
+    a calc:Display , owl:NamedIndividual ;
+    rdfs:label "Main Display" ;
+    rdfs:comment "The primary numeric output panel of the calculator." ;
+    calc:displayValue "" ;
+    dsl:dslUIComponent "FIELD" ;
+    dsl:bindExpression "calculate(operand1.value, operand2.value, operationType.value)" .
+
+# ---------------------------------------------------------------------------
+# Calculator Application Individual
+# ---------------------------------------------------------------------------
+
+calc:calculatorApp
+    a calc:Calculator , owl:NamedIndividual ;
+    rdfs:label "Calculator Application" ;
+    rdfs:comment "The singleton Calculator application instance." ;
+    dsl:name        "Calculator" ;
+    dsl:description "A four-function arithmetic calculator demonstrating PL/SPARQL functions, la-if branching, SPARQL INSERT and tripleStore history." ;
+    dsl:version     "1.0.0" ;
+    calc:hasDisplay  calc:mainDisplay ;
+    calc:hasButton   calc:plusButton ;
+    calc:hasButton   calc:minusButton ;
+    calc:hasButton   calc:multiplyButton ;
+    calc:hasButton   calc:divideButton ;
+    calc:hasButton   calc:equalsButton ;
+    calc:hasButton   calc:clearButton .
+
+# ---------------------------------------------------------------------------
+# Pseudo-process individual (referenced by equalsButton)
+# ---------------------------------------------------------------------------
+
+calc:storeResultProcess
+    a dsl:Process , owl:NamedIndividual ;
+    rdfs:label "Store Result Process" ;
+    rdfs:comment "Corresponds to the storeResult() PL/SPARQL FUNCTION. Generates a new Result IRI and inserts it into the <calculator> graph." ;
+    dsl:dslFunction "storeResult" .
