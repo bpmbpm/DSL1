@@ -9,3 +9,4 @@ github pages https://bpmbpm.github.io/DSL1/ver1/index.html
 Программирование без программирования
 - Low-code / No-code (OutSystems, Mendix, AppSmith)
 - [Программирование без кода. Лучшие инструменты 2022 года](https://habr.com/ru/companies/sberbank/articles/693864/)
+- Twine https://thecode.media/low-code-i-no-code-eto-konets-programmistam/
