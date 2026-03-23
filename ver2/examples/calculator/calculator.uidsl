@@ -1,0 +1,120 @@
+// ============================================================================
+// Калькулятор — UI DSL (ver2)
+// Файл: calculator.uidsl
+//
+// Описывает интерфейс калькулятора.
+// По сравнению с ver1 убраны:
+//   - окно «История вычислений» (Calculation History)
+//   - окно «Частота операций» (Operation Frequency)
+//   - кнопка «Clear History»
+//
+// Каждый элемент BIND TO ссылается на FUNCTION из calculator.dsl.
+// Блоки ON CLICK используют выражения PL/SPARQL.
+// ============================================================================
+
+USE DSL "calculator.dsl"
+USE ONTOLOGY "calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#>"
+
+// ============================================================================
+// Главное окно калькулятора
+// ============================================================================
+WINDOW calculatorWindow {
+  TITLE     "Калькулятор"
+  WIDTH     440
+  HEIGHT    360
+  RESIZABLE false
+  STYLE     "calculator-window"
+
+  // --------------------------------------------------------------------------
+  // Панель результата — показывает текущий результат или начальный ноль
+  // --------------------------------------------------------------------------
+  FIELD display {
+    LABEL       "Результат"
+    TYPE        text
+    READONLY    true
+    PLACEHOLDER "0"
+    STYLE       "display-panel"
+  }
+
+  // --------------------------------------------------------------------------
+  // Ввод первого числа
+  // --------------------------------------------------------------------------
+  FIELD operand1 {
+    LABEL       "Первое число"
+    TYPE        number
+    PLACEHOLDER "Введите первое число"
+    REQUIRED    true
+    STYLE       "operand-field"
+  }
+
+  // --------------------------------------------------------------------------
+  // Ввод второго числа
+  // --------------------------------------------------------------------------
+  FIELD operand2 {
+    LABEL       "Второе число"
+    TYPE        number
+    PLACEHOLDER "Введите второе число"
+    REQUIRED    true
+    STYLE       "operand-field"
+  }
+
+  // --------------------------------------------------------------------------
+  // Выпадающий список операций — заполняется из хранилища через getOperations()
+  // Вызов getOperations() относится к модулю ИНИЦИАЛИЗАЦИЯ
+  // --------------------------------------------------------------------------
+  DROPDOWN operationType {
+    LABEL     "Операция"
+    BIND TO   getOperations()
+    DISPLAY   ?symbol
+    VALUE     ?label
+    SELECTION single
+    REQUIRED  true
+    STYLE     "operation-dropdown"
+  }
+
+  // --------------------------------------------------------------------------
+  // Кнопка «Вычислить» — запускает модуль ВЫЧИСЛЕНИЕ
+  // --------------------------------------------------------------------------
+  BUTTON calculateBtn {
+    LABEL "Вычислить"
+    STYLE "btn-primary"
+    ORDER 1
+
+    ON CLICK {
+      let op1    = NUMBER(operand1.value)
+      let op2    = NUMBER(operand2.value)
+      let opType = operationType.value
+
+      la-if (op1 === null || op2 === null) {
+        SHOW ALERT "Введите оба числа перед вычислением."
+        return
+      }
+
+      la-if (opType === null || opType === "") {
+        SHOW ALERT "Выберите операцию."
+        return
+      }
+
+      let rawResult     = calculate(op1, op2, opType)
+      let displayResult = formatResult(rawResult, 10)
+
+      display.value = displayResult
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Кнопка «Очистить» — сбрасывает поля ввода и дисплей
+  // --------------------------------------------------------------------------
+  BUTTON clearBtn {
+    LABEL "Очистить"
+    STYLE "btn-secondary"
+    ORDER 2
+
+    ON CLICK {
+      operand1.value      = ""
+      operand2.value      = ""
+      operationType.value = ""
+      display.value       = ""
+    }
+  }
+}
