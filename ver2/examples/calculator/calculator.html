@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор DSL1 (ver2)</title>
+
+<!-- N3.js — парсинг RDF и хранение тройственного хранилища (quadStore) -->
+<script src="https://unpkg.com/n3@1.17.2/browser/n3.min.js"></script>
+
+<style>
+  /* ── Переменные дизайна ─────────────────────────────────────────────── */
+  :root {
+    --primary:      #4a6cf7;
+    --primary-dark: #3a5ce5;
+    --secondary:    #6c757d;
+    --danger:       #dc3545;
+    --bg:           #f0f2ff;
+    --surface:      #ffffff;
+    --surface-alt:  #f8f9fa;
+    --border:       #dee2e6;
+    --text:         #212529;
+    --text-muted:   #6c757d;
+    --radius:       8px;
+    --shadow:       0 4px 16px rgba(74,108,247,0.10);
+    --font:         system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  /* ── Сброс отступов ─────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px 64px;
+  }
+
+  /* ── Карточка калькулятора ──────────────────────────────────────────── */
+  .calculator-window {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px 32px 32px;
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .calculator-window h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--bg);
+  }
+
+  /* ── Панель результата ──────────────────────────────────────────────── */
+  .display-panel {
+    background: var(--surface-alt);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0;
+    margin-bottom: 20px;
+  }
+
+  .display-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 8px 12px 4px;
+  }
+
+  #display {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    font-weight: 600;
+    text-align: right;
+    padding: 4px 14px 12px;
+    color: var(--text);
+    outline: none;
+  }
+
+  #display.error { color: var(--danger); font-size: 16px; }
+
+  /* ── Поля ввода ─────────────────────────────────────────────────────── */
+  .field-group { margin-bottom: 16px; }
+
+  .field-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .field-group input[type="number"],
+  .field-group select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 15px;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .field-group select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%236c757d'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  .field-group input:focus, .field-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(74,108,247,0.15);
+  }
+
+  /* ── Два поля операндов в ряд ───────────────────────────────────────── */
+  .operands-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ── Кнопки ─────────────────────────────────────────────────────────── */
+  .button-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 22px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.08s;
+  }
+
+  .btn:active { transform: translateY(1px); }
+
+  .btn-primary   { background: var(--primary);   color: #fff; }
+  .btn-primary:hover   { background: var(--primary-dark); }
+  .btn-secondary { background: var(--secondary); color: #fff; }
+  .btn-secondary:hover { background: #5a6268; }
+
+  /* ── Адаптивность ───────────────────────────────────────────────────── */
+  @media (max-width: 440px) {
+    .operands-row { grid-template-columns: 1fr; }
+    .calculator-window { padding: 20px 16px 24px; }
+    #display { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="dsl-app">
+  <div class="calculator-window">
+    <h2>Калькулятор</h2>
+
+    <!-- Панель результата -->
+    <div class="display-panel">
+      <div class="display-label">Результат</div>
+      <input id="display" type="text" readonly placeholder="0">
+    </div>
+
+    <!-- Поля операндов (два в ряд) -->
+    <div class="operands-row">
+      <div class="field-group">
+        <label for="operand1">Первое число</label>
+        <input id="operand1" type="number" placeholder="Введите число" step="any">
+      </div>
+      <div class="field-group">
+        <label for="operand2">Второе число</label>
+        <input id="operand2" type="number" placeholder="Введите число" step="any">
+      </div>
+    </div>
+
+    <!-- Выпадающий список операций -->
+    <div class="field-group">
+      <label for="operationType">Операция</label>
+      <select id="operationType">
+        <option value="">-- выберите операцию --</option>
+        <!-- Заполняется из хранилища N3 после загрузки онтологии (ИНИЦИАЛИЗАЦИЯ) -->
+      </select>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="button-row">
+      <button id="calculateBtn" class="btn btn-primary"   onclick="handleCalculate()">Вычислить</button>
+      <button id="clearBtn"     class="btn btn-secondary" onclick="handleClear()">Очистить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Сгенерировано транслятором DSL1
+// Источник: calculator.dsl + calculator.uidsl + онтология
+//
+// Браузерный JS, не требует Node.js.
+// Структура скрипта повторяет модули DSL:
+//   ЧАСТЬ 1 — ИНИЦИАЛИЗАЦИЯ (загрузка онтологии, заполнение UI)
+//   ЧАСТЬ 2 — ВЫЧИСЛЕНИЕ    (обработка ввода, вычисление, вывод)
+// ============================================================
+
+// ── Пространства имён ──────────────────────────────────────────────────────
+var calcNS  = 'https://github.com/bpmbpm/DSL1/ontology/calculator#';
+var dslNS   = 'https://github.com/bpmbpm/DSL1/ontology#';
+var rdfType = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+var xsdNS   = 'http://www.w3.org/2001/XMLSchema#';
+
+// ── Хранилище N3 (quadStore) ───────────────────────────────────────────────
+var store = new N3.Store();
+
+// Граф, в котором хранится онтология калькулятора
+var calcGraph = N3.DataFactory.namedNode('https://github.com/bpmbpm/DSL1/graphs/calculator');
+
+// ── Вспомогательные функции работы с N3 ───────────────────────────────────
+
+// Создаёт именованный узел RDF
+function namedNode(iri) {
+  return N3.DataFactory.namedNode(iri);
+}
+
+// Создаёт литерал RDF (строка с необязательным типом)
+function literal(val, dtype) {
+  if (dtype) {
+    return N3.DataFactory.literal(String(val), namedNode(dtype));
+  }
+  return N3.DataFactory.literal(String(val));
+}
+
+// Создаёт квад (тройку + граф)
+function quad(s, p, o, g) {
+  return N3.DataFactory.quad(s, p, o, g);
+}
+
+// Извлекает строковое значение из RDF-термина
+function termVal(t) {
+  if (!t) return null;
+  return t.value !== undefined ? t.value : String(t);
+}
+
+// ── Онтология калькулятора (встроенный Turtle) ─────────────────────────────
+// Описывает четыре операции: сложение, вычитание, умножение, деление.
+var ontologyTurtle = `
+@base <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix dsl:  <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+
+calc:addOperation
+    a calc:Operation ;
+    calc:operationName   "add" ;
+    calc:operationSymbol "+" ;
+    dsl:order            "1"^^xsd:integer .
+
+calc:subtractOperation
+    a calc:Operation ;
+    calc:operationName   "subtract" ;
+    calc:operationSymbol "-" ;
+    dsl:order            "2"^^xsd:integer .
+
+calc:multiplyOperation
+    a calc:Operation ;
+    calc:operationName   "multiply" ;
+    calc:operationSymbol "*" ;
+    dsl:order            "3"^^xsd:integer .
+
+calc:divideOperation
+    a calc:Operation ;
+    calc:operationName   "divide" ;
+    calc:operationSymbol "/" ;
+    dsl:order            "4"^^xsd:integer .
+`;
+
+
+// ==========================================================================
+// ЧАСТЬ 1: ИНИЦИАЛИЗАЦИЯ
+// Функции вызываются один раз при загрузке страницы (DOMContentLoaded).
+// Загружают онтологию в хранилище и заполняют выпадающий список операций.
+// ==========================================================================
+
+// --------------------------------------------------------------------------
+// loadOntology()
+// Парсит встроенный Turtle и добавляет тройки в граф <calculator>.
+// Возвращает Promise, который выполняется после завершения парсинга.
+// --------------------------------------------------------------------------
+function loadOntology() {
+  return new Promise(function(resolve) {
+    var parser = new N3.Parser({
+      baseIRI: 'https://github.com/bpmbpm/DSL1/ontology/calculator#'
+    });
+    parser.parse(ontologyTurtle, function(err, q) {
+      if (err) {
+        console.warn('Ошибка парсинга Turtle:', err);
+        resolve();
+        return;
+      }
+      if (q) {
+        // Помещаем тройку в именованный граф калькулятора
+        store.addQuad(quad(q.subject, q.predicate, q.object, calcGraph));
+      } else {
+        // Парсинг завершён
+        resolve();
+      }
+    });
+  });
+}
+
+// --------------------------------------------------------------------------
+// getOperations()  [DSL: FUNCTION getOperations]
+// Читает из хранилища все экземпляры calc:Operation.
+// Возвращает массив { op, label, symbol, orderVal }, отсортированный по order.
+// --------------------------------------------------------------------------
+function getOperations() {
+  var opType = namedNode(calcNS + 'Operation');
+  var opNameP = namedNode(calcNS + 'operationName');
+  var opSymP  = namedNode(calcNS + 'operationSymbol');
+  var dslOrd  = namedNode(dslNS  + 'order');
+  var rdfTypeN = namedNode(rdfType);
+
+  // Получаем все субъекты с типом calc:Operation
+  var subjects = store.getSubjects(rdfTypeN, opType, calcGraph);
+  var ops = [];
+
+  subjects.forEach(function(subj) {
+    var nameQ = store.getQuads(subj, opNameP, null, calcGraph);
+    var symQ  = store.getQuads(subj, opSymP,  null, calcGraph);
+    var ordQ  = store.getQuads(subj, dslOrd,  null, calcGraph);
+    ops.push({
+      op:       subj,
+      label:    nameQ[0] ? nameQ[0].object : literal(''),
+      symbol:   symQ[0]  ? symQ[0].object  : literal(''),
+      orderVal: ordQ[0]  ? ordQ[0].object  : literal('0'),
+    });
+  });
+
+  // Сортируем по порядковому номеру
+  ops.sort(function(a, b) {
+    return parseInt(termVal(a.orderVal), 10) - parseInt(termVal(b.orderVal), 10);
+  });
+
+  return ops;
+}
+
+// --------------------------------------------------------------------------
+// initDropdown()
+// Заполняет выпадающий список операций данными из хранилища.
+// Вызывается один раз при инициализации.
+// --------------------------------------------------------------------------
+function initDropdown() {
+  var sel = document.getElementById('operationType');
+
+  // Удаляем старые варианты (кроме плейсхолдера)
+  while (sel.options.length > 1) sel.remove(1);
+
+  var ops = getOperations();
+  ops.forEach(function(row) {
+    var opt = document.createElement('option');
+    opt.value = termVal(row.label);   // «add», «subtract», ...
+    // Показываем символ и название: «+ (Сложение)»
+    var sym  = termVal(row.symbol);
+    var name = termVal(row.label);
+    var names = { add: 'Сложение', subtract: 'Вычитание', multiply: 'Умножение', divide: 'Деление' };
+    opt.textContent = sym + '  (' + (names[name] || name) + ')';
+    sel.appendChild(opt);
+  });
+}
+
+
+// ==========================================================================
+// ЧАСТЬ 2: ВЫЧИСЛЕНИЕ
+// Функции вызываются при каждом нажатии кнопки «Вычислить».
+// Получают данные из полей ввода, выполняют операцию, отображают результат.
+// ==========================================================================
+
+// --------------------------------------------------------------------------
+// calculate(operand1, operand2, operationType)  [DSL: FUNCTION calculate]
+// Выполняет арифметику. Возвращает число или строку с ошибкой.
+// --------------------------------------------------------------------------
+function calculate(operand1, operand2, operationType) {
+  var op1 = parseFloat(operand1);
+  var op2 = parseFloat(operand2);
+
+  // la-if: проверяем оба операнда
+  if (isNaN(op1) || isNaN(op2)) {
+    return 'Ошибка: введите оба числа';
+  }
+
+  // la-if: проверяем, выбрана ли операция
+  if (!operationType) {
+    return 'Ошибка: выберите операцию';
+  }
+
+  // Диспетчеризация — la-if по типу операции
+  if (operationType === 'add')      { return op1 + op2; }
+  if (operationType === 'subtract') { return op1 - op2; }
+  if (operationType === 'multiply') { return op1 * op2; }
+  if (operationType === 'divide') {
+    if (op2 === 0) { return 'Ошибка: деление на ноль'; }
+    return op1 / op2;
+  }
+
+  return 'Ошибка: неизвестная операция: ' + operationType;
+}
+
+// --------------------------------------------------------------------------
+// formatResult(value, decimalPlaces)  [DSL: FUNCTION formatResult]
+// Форматирует числовой результат для вывода.
+// Строки с ошибками возвращает без изменений.
+// --------------------------------------------------------------------------
+function formatResult(value, decimalPlaces) {
+  // la-if: если строка — передаём как есть
+  if (typeof value === 'string') { return value; }
+
+  var places = (decimalPlaces == null) ? 10 : decimalPlaces;
+  var rounded = parseFloat(value.toFixed(places));
+  return String(rounded);
+}
+
+// --------------------------------------------------------------------------
+// handleCalculate()
+// Обработчик кнопки «Вычислить» (ON CLICK в calculator.uidsl).
+// Читает поля, вызывает calculate() и formatResult(), выводит результат.
+// --------------------------------------------------------------------------
+function handleCalculate() {
+  var op1Raw = document.getElementById('operand1').value;
+  var op2Raw = document.getElementById('operand2').value;
+  var opType = document.getElementById('operationType').value;
+
+  // Базовая проверка заполненности полей
+  if (op1Raw === '' || op2Raw === '') {
+    alert('Введите оба числа перед вычислением.');
+    return;
+  }
+  if (!opType) {
+    alert('Выберите операцию.');
+    return;
+  }
+
+  // Вычисляем и форматируем
+  var rawResult     = calculate(op1Raw, op2Raw, opType);
+  var displayResult = formatResult(rawResult, 10);
+
+  // Показываем результат на панели
+  var displayEl = document.getElementById('display');
+  displayEl.value = displayResult;
+
+  // Выделяем ошибки красным цветом
+  if (typeof displayResult === 'string' && displayResult.startsWith('Ошибка')) {
+    displayEl.classList.add('error');
+  } else {
+    displayEl.classList.remove('error');
+  }
+}
+
+// --------------------------------------------------------------------------
+// handleClear()
+// Обработчик кнопки «Очистить» (ON CLICK в calculator.uidsl).
+// Сбрасывает все поля и дисплей.
+// --------------------------------------------------------------------------
+function handleClear() {
+  document.getElementById('operand1').value      = '';
+  document.getElementById('operand2').value      = '';
+  document.getElementById('operationType').value = '';
+  var displayEl = document.getElementById('display');
+  displayEl.value = '';
+  displayEl.classList.remove('error');
+}
+
+// Нажатие Enter в полях ввода запускает вычисление
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    var active = document.activeElement;
+    if (active && (active.id === 'operand1' || active.id === 'operand2' || active.id === 'operationType')) {
+      handleCalculate();
+    }
+  }
+});
+
+
+// ==========================================================================
+// ЗАПУСК
+// DOMContentLoaded → loadOntology() → initDropdown()
+// (только ИНИЦИАЛИЗАЦИЯ; ВЫЧИСЛЕНИЕ запускается по клику)
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  loadOntology().then(function() {
+    // После загрузки онтологии заполняем список операций
+    initDropdown();
+  });
+});
+</script>
+</body>
+</html>
