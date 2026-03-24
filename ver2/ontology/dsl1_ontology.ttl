@@ -1,0 +1,247 @@
+@base <https://github.com/bpmbpm/DSL1/ontology/dsl1#> .
+
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix dsl:     <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix dsl1:    <https://github.com/bpmbpm/DSL1/ontology/dsl1#> .
+@prefix ui:      <https://github.com/bpmbpm/DSL1/ontology/ui#> .
+@prefix bpmn:    <https://www.omg.org/spec/BPMN/20100524/MODEL#> .
+@prefix dc:      <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# Описание онтологии
+# ---------------------------------------------------------------------------
+
+<https://github.com/bpmbpm/DSL1/ontology/dsl1>
+    a owl:Ontology ;
+    owl:versionIRI <https://github.com/bpmbpm/DSL1/ontology/dsl1/2.0> ;
+    owl:versionInfo "2.0.0" ;
+    dc:title "DSL1 ver2 — Базовая онтология языка DSL1" ;
+    dc:description "Базовая OWL/RDF онтология языка программирования DSL1 (ver2). Определяет типы полей ввода, набор встроенных функций (включая funSPARQLvalues), компоненты UI DSL, привязки к BPMN 2.0 и инфраструктуру аннотаций для всех прикладных онтологий." ;
+    dc:creator "DSL1 Project" ;
+    dcterms:created "2026-03-24"^^xsd:date ;
+    dcterms:modified "2026-03-24"^^xsd:date ;
+    dcterms:license <https://opensource.org/licenses/MIT> ;
+    rdfs:comment "Онтология ver2: только браузерный JS, N3.js + Comunica. Все прикладные онтологии (calculator_ontology.ttl и др.) импортируют эту базовую онтологию." .
+
+# ---------------------------------------------------------------------------
+# Классы типов полей ввода (FieldType)
+# ---------------------------------------------------------------------------
+
+dsl1:FieldType
+    a owl:Class ;
+    rdfs:label "Тип поля" ;
+    rdfs:comment "Базовый класс для типов полей ввода/вывода в UI DSL. Подклассы определяют конкретные разновидности виджетов." .
+
+dsl1:NumberField
+    a owl:Class ;
+    rdfs:label "Числовое поле" ;
+    rdfs:comment "Поле ввода числового значения. В HTML транслируется как <input type='text'> с фильтром на числа (не type='number', чтобы исключить кнопки-стрелки). Допустимые символы: цифры, минус, точка/запятая." ;
+    rdfs:subClassOf dsl1:FieldType ;
+    skos:definition "Поле, принимающее только числовые значения (целые и дробные). Фильтрует нечисловые символы на вводе." .
+
+dsl1:TextField
+    a owl:Class ;
+    rdfs:label "Текстовое поле" ;
+    rdfs:comment "Поле ввода произвольной строки." ;
+    rdfs:subClassOf dsl1:FieldType .
+
+dsl1:ReadonlyField
+    a owl:Class ;
+    rdfs:label "Поле только для чтения" ;
+    rdfs:comment "Поле только для отображения значения, пользователь не может его редактировать. Используется для вывода результата и сообщений статуса." ;
+    rdfs:subClassOf dsl1:FieldType .
+
+dsl1:DropdownField
+    a owl:Class ;
+    rdfs:label "Выпадающий список" ;
+    rdfs:comment "Поле выбора значения из заданного списка. Список вариантов определяется через funSPARQLvalues или явным перечислением в онтологии." ;
+    rdfs:subClassOf dsl1:FieldType .
+
+dsl1:StatusField
+    a owl:Class ;
+    rdfs:label "Поле статуса" ;
+    rdfs:comment "Специализированное поле только для чтения, предназначенное исключительно для отображения сообщений об ошибках и статусе выполнения. Ошибки выводятся ТОЛЬКО в это поле, не в поле результата." ;
+    rdfs:subClassOf dsl1:ReadonlyField .
+
+# ---------------------------------------------------------------------------
+# Классы функций DSL1
+# ---------------------------------------------------------------------------
+
+dsl1:Function
+    a owl:Class ;
+    rdfs:label "Функция DSL1" ;
+    rdfs:comment "Базовый класс для описания встроенных и прикладных функций языка DSL1. Экземпляры этого класса документируют сигнатуру, назначение и правила трансляции каждой функции в JS." .
+
+dsl1:BuiltinFunction
+    a owl:Class ;
+    rdfs:label "Встроенная функция" ;
+    rdfs:comment "Функция, реализованная в ядре транслятора DSL1. Не требует импорта дополнительных модулей (кроме случаев, специально оговорённых в dsl1:requiresModule)." ;
+    rdfs:subClassOf dsl1:Function .
+
+dsl1:SPARQLFunction
+    a owl:Class ;
+    rdfs:label "SPARQL-функция" ;
+    rdfs:comment "Функция, реализующая взаимодействие с RDF-хранилищем через SPARQL-запросы. Транслируется в вызов funSPARQLvalues или аналогичного адаптера Comunica." ;
+    rdfs:subClassOf dsl1:Function .
+
+# ---------------------------------------------------------------------------
+# Свойства описания функций
+# ---------------------------------------------------------------------------
+
+dsl1:functionName
+    a owl:DatatypeProperty ;
+    rdfs:label "Имя функции" ;
+    rdfs:comment "Идентификатор функции в DSL1-коде. Совпадает с именем JS-функции в транслированном коде." ;
+    rdfs:domain dsl1:Function ;
+    rdfs:range  xsd:string .
+
+dsl1:functionSignature
+    a owl:DatatypeProperty ;
+    rdfs:label "Сигнатура функции" ;
+    rdfs:comment "Описание параметров и возвращаемого значения в формате: functionName(param1: type, ...) → returnType." ;
+    rdfs:domain dsl1:Function ;
+    rdfs:range  xsd:string .
+
+dsl1:functionDescription
+    a owl:DatatypeProperty ;
+    rdfs:label "Описание функции" ;
+    rdfs:comment "Текстовое описание назначения функции на русском языке." ;
+    rdfs:domain dsl1:Function ;
+    rdfs:range  xsd:string .
+
+dsl1:jsTranslation
+    a owl:DatatypeProperty ;
+    rdfs:label "Трансляция в JS" ;
+    rdfs:comment "Описание правила трансляции данной DSL1-конструкции в браузерный JavaScript." ;
+    rdfs:domain dsl1:Function ;
+    rdfs:range  xsd:string .
+
+dsl1:requiresModule
+    a owl:DatatypeProperty ;
+    rdfs:label "Требует модуль" ;
+    rdfs:comment "Имя JS-файла, который должен быть подключён для работы данной функции." ;
+    rdfs:domain dsl1:Function ;
+    rdfs:range  xsd:string .
+
+# ---------------------------------------------------------------------------
+# Экземпляр: funSPARQLvalues
+# ---------------------------------------------------------------------------
+
+dsl1:funSPARQLvalues
+    a dsl1:SPARQLFunction , owl:NamedIndividual ;
+    rdfs:label "funSPARQLvalues" ;
+    rdfs:comment "Ключевая функция DSL1 для выполнения SPARQL SELECT запросов через движок Comunica. Используется для заполнения выпадающих списков, фильтрации данных и любого чтения из RDF-хранилища через полный SPARQL 1.1." ;
+    dsl1:functionName "funSPARQLvalues" ;
+    dsl1:functionSignature "funSPARQLvalues(currentStore: N3.Store, sparqlQuery: string) → Promise<Array<Object>>" ;
+    dsl1:functionDescription "Выполняет SPARQL SELECT запрос против указанного N3.Store через движок Comunica. Возвращает Promise с массивом объектов — каждый объект соответствует одной строке результата SPARQL. Ключи объекта — имена переменных без знака '?', значения — RDF-термины Comunica." ;
+    dsl1:jsTranslation "Транслируется в вызов модуля SPARQL.js: await funSPARQLvalues(store, sparqlQuery). Требует async-контекст. Результат используется для заполнения <select> или обработки данных." ;
+    dsl1:requiresModule "SPARQL.js" ;
+    skos:example """// Пример вызова в ИНИЦИАЛИЗАЦИИ:
+let rows = await funSPARQLvalues(currentStore, `
+  PREFIX calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#>
+  SELECT ?label ?symbol WHERE {
+    ?op a calc:Operation ;
+        calc:operationName ?label ;
+        calc:operationSymbol ?symbol .
+  } ORDER BY ASC(?order)
+`);
+// rows = [{ label: NamedNode{value:'add'}, symbol: NamedNode{value:'+'} }, ...]""" .
+
+# ---------------------------------------------------------------------------
+# Аннотационные свойства (привязки DSL ↔ UI ↔ BPMN)
+# ---------------------------------------------------------------------------
+
+dsl1:dslConnection
+    a owl:AnnotationProperty ;
+    rdfs:label "Связь с .dsl файлом" ;
+    rdfs:comment "Указывает имя .dsl-файла, в котором описана логика обработки данного поля или компонента." ;
+    rdfs:subPropertyOf rdfs:seeAlso .
+
+dsl1:uidslConnection
+    a owl:AnnotationProperty ;
+    rdfs:label "Связь с .uidsl файлом" ;
+    rdfs:comment "Указывает имя .uidsl-файла, в котором описана UI-привязка данного поля или компонента." ;
+    rdfs:subPropertyOf rdfs:seeAlso .
+
+dsl1:bpmnElement
+    a owl:AnnotationProperty ;
+    rdfs:label "Элемент BPMN 2.0" ;
+    rdfs:comment "Тип элемента BPMN 2.0, которому соответствует данная DSL1-конструкция при конвертации. Возможные значения: StartEvent, EndEvent, UserTask, ServiceTask, ExclusiveGateway, ParallelGateway, IntermediateCatchEvent." ;
+    rdfs:subPropertyOf rdfs:comment .
+
+dsl1:bpmnId
+    a owl:AnnotationProperty ;
+    rdfs:label "Идентификатор BPMN" ;
+    rdfs:comment "Значение атрибута id в XML BPMN 2.0 для элемента, соответствующего данному индивиду онтологии." ;
+    rdfs:subPropertyOf rdfs:comment .
+
+# ---------------------------------------------------------------------------
+# Классы UI-компонентов (базовые)
+# ---------------------------------------------------------------------------
+
+dsl1:UIComponent
+    a owl:Class ;
+    rdfs:label "UI-компонент" ;
+    rdfs:comment "Базовый класс для всех виджетов интерфейса, описываемых в .uidsl-файлах. Транслируется в DOM-элементы браузера." .
+
+dsl1:InputComponent
+    a owl:Class ;
+    rdfs:label "Компонент ввода" ;
+    rdfs:comment "UI-компонент, принимающий ввод от пользователя." ;
+    rdfs:subClassOf dsl1:UIComponent .
+
+dsl1:OutputComponent
+    a owl:Class ;
+    rdfs:label "Компонент вывода" ;
+    rdfs:comment "UI-компонент, отображающий результат или статус." ;
+    rdfs:subClassOf dsl1:UIComponent .
+
+dsl1:ActionComponent
+    a owl:Class ;
+    rdfs:label "Компонент действия" ;
+    rdfs:comment "UI-компонент, инициирующий действие (кнопка)." ;
+    rdfs:subClassOf dsl1:UIComponent .
+
+# ---------------------------------------------------------------------------
+# Привязки к BPMN 2.0
+# ---------------------------------------------------------------------------
+
+dsl1:BPMNElement
+    a owl:Class ;
+    rdfs:label "Элемент BPMN 2.0" ;
+    rdfs:comment "Базовый класс для описания соответствий DSL1-конструкций элементам BPMN 2.0. Используется в BPMN_converter.md для документирования правил конвертации." .
+
+dsl1:BPMNStartEvent
+    a dsl1:BPMNElement , owl:NamedIndividual ;
+    rdfs:label "BPMN StartEvent" ;
+    rdfs:comment "Начальное событие процесса. В DSL1 соответствует точке входа в приложение (DOMContentLoaded)." .
+
+dsl1:BPMNEndEvent
+    a dsl1:BPMNElement , owl:NamedIndividual ;
+    rdfs:label "BPMN EndEvent" ;
+    rdfs:comment "Завершающее событие процесса. В DSL1 соответствует нажатию кнопки 'Выход' (CLOSE WINDOW) или завершению вычисления." .
+
+dsl1:BPMNUserTask
+    a dsl1:BPMNElement , owl:NamedIndividual ;
+    rdfs:label "BPMN UserTask" ;
+    rdfs:comment "Задача, требующая участия пользователя. В DSL1 соответствует полям ввода (FIELD с TYPE number/text)." .
+
+dsl1:BPMNServiceTask
+    a dsl1:BPMNElement , owl:NamedIndividual ;
+    rdfs:label "BPMN ServiceTask" ;
+    rdfs:comment "Автоматическая задача (сервисный вызов). В DSL1 соответствует функциям: loadOntology(), funSPARQLvalues(), calculate(), formatResult()." .
+
+dsl1:BPMNParallelGateway
+    a dsl1:BPMNElement , owl:NamedIndividual ;
+    rdfs:label "BPMN ParallelGateway" ;
+    rdfs:comment "Параллельный шлюз (AND-split/AND-join). В DSL1 соответствует одновременному ожиданию ввода в поля Input1, Input2 и выбора Operation." .
+
+dsl1:BPMNExclusiveGateway
+    a dsl1:BPMNElement , owl:NamedIndividual ;
+    rdfs:label "BPMN ExclusiveGateway (XOR)" ;
+    rdfs:comment "Исключающий шлюз. В DSL1 соответствует конструкции la-if (условное ветвление)." .

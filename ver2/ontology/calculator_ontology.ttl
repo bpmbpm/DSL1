@@ -1,0 +1,160 @@
+@base <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix dsl:     <https://github.com/bpmbpm/DSL1/ontology#> .
+@prefix dsl1:    <https://github.com/bpmbpm/DSL1/ontology/dsl1#> .
+@prefix calc:    <https://github.com/bpmbpm/DSL1/ontology/calculator#> .
+@prefix dc:      <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# ---------------------------------------------------------------------------
+# Описание онтологии
+# ---------------------------------------------------------------------------
+
+<https://github.com/bpmbpm/DSL1/ontology/calculator>
+    a owl:Ontology ;
+    owl:imports <https://github.com/bpmbpm/DSL1/ontology/dsl1> ;
+    owl:versionIRI <https://github.com/bpmbpm/DSL1/ontology/calculator/2.0> ;
+    owl:versionInfo "2.0.0" ;
+    dc:title "DSL1 ver2 — Онтология задачи Калькулятор" ;
+    dc:description "Прикладная OWL/RDF онтология для задачи 'Калькулятор' в системе DSL1 ver2. Определяет четыре арифметические операции, поля ввода Input1 и Input2, поле операции Operation (выпадающий список), поля вывода Result и Status. Соответствует аналогу 'Hello Calculator' из BPMN Runa WFE." ;
+    dc:creator "DSL1 Project" ;
+    dcterms:created "2026-03-24"^^xsd:date ;
+    dcterms:modified "2026-03-24"^^xsd:date ;
+    rdfs:comment "Граф хранилища quad-store: <calculator>. Импортирует dsl1_ontology.ttl. Значения выпадающего списка операций получаются через funSPARQLvalues." .
+
+# ---------------------------------------------------------------------------
+# Классы
+# ---------------------------------------------------------------------------
+
+calc:Calculator
+    a owl:Class ;
+    rdfs:label "Калькулятор" ;
+    rdfs:comment "Главная сущность приложения Калькулятор. Ровно один экземпляр ожидается в графе <calculator>." ;
+    skos:definition "Четырёхдействный арифметический калькулятор, реализованный на DSL1 ver2." ;
+    dsl1:bpmnElement "Process" ;
+    dsl1:bpmnId "Process_Calculator" .
+
+calc:Operation
+    a owl:Class ;
+    rdfs:label "Операция" ;
+    rdfs:comment "Поддерживаемая арифметическая операция (сложение, вычитание, умножение, деление). Экземпляры — именованные индивиды, неизменяемые после загрузки онтологии. Список для выпадающего поля id=Operation получается через funSPARQLvalues." ;
+    skos:definition "Арифметическая операция над двумя числовыми операндами, возвращающая числовой результат." ;
+    dsl1:dslConnection "calculator.dsl" ;
+    dsl1:uidslConnection "calculator.uidsl" ;
+    dsl1:bpmnElement "ServiceTask" ;
+    dsl1:bpmnId "Task_Operation" .
+
+# ---------------------------------------------------------------------------
+# Свойства операций
+# ---------------------------------------------------------------------------
+
+calc:operationName
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "Имя операции" ;
+    rdfs:comment "Строка-идентификатор операции в нижнем регистре ASCII, используемая в switch-логике DSL: 'add', 'subtract', 'multiply', 'divide'." ;
+    rdfs:domain calc:Operation ;
+    rdfs:range  xsd:string .
+
+calc:operationSymbol
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "Символ операции" ;
+    rdfs:comment "Математический символ операции для отображения в выпадающем списке: '+', '-', '*', '/'." ;
+    rdfs:domain calc:Operation ;
+    rdfs:range  xsd:string .
+
+calc:operationLabel
+    a owl:DatatypeProperty , owl:FunctionalProperty ;
+    rdfs:label "Метка операции" ;
+    rdfs:comment "Читаемое название операции на русском языке: 'Сложение', 'Вычитание', 'Умножение', 'Деление'." ;
+    rdfs:domain calc:Operation ;
+    rdfs:range  xsd:string .
+
+# ---------------------------------------------------------------------------
+# Индивиды: операции
+# ---------------------------------------------------------------------------
+
+calc:addOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Сложение" ;
+    rdfs:comment "Прибавляет Input2 к Input1." ;
+    calc:operationName   "add" ;
+    calc:operationSymbol "+" ;
+    calc:operationLabel  "Сложение" ;
+    dsl:order            "1"^^xsd:integer .
+
+calc:subtractOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Вычитание" ;
+    rdfs:comment "Вычитает Input2 из Input1." ;
+    calc:operationName   "subtract" ;
+    calc:operationSymbol "-" ;
+    calc:operationLabel  "Вычитание" ;
+    dsl:order            "2"^^xsd:integer .
+
+calc:multiplyOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Умножение" ;
+    rdfs:comment "Умножает Input1 на Input2." ;
+    calc:operationName   "multiply" ;
+    calc:operationSymbol "*" ;
+    calc:operationLabel  "Умножение" ;
+    dsl:order            "3"^^xsd:integer .
+
+calc:divideOperation
+    a calc:Operation , owl:NamedIndividual ;
+    rdfs:label "Деление" ;
+    rdfs:comment "Делит Input1 на Input2. Возвращает ошибку при Input2 = 0." ;
+    calc:operationName   "divide" ;
+    calc:operationSymbol "/" ;
+    calc:operationLabel  "Деление" ;
+    dsl:order            "4"^^xsd:integer .
+
+# ---------------------------------------------------------------------------
+# Описание полей интерфейса (Input1, Input2, Operation, Result, Status)
+# ---------------------------------------------------------------------------
+
+calc:Input1
+    a dsl1:NumberField , owl:NamedIndividual ;
+    rdfs:label "Первое число (Input1)" ;
+    rdfs:comment "Поле ввода первого числового операнда. id=Input1. Связано с .dsl и .uidsl через этот идентификатор. Фильтр ввода: только числа (цифры, '-', '.'). Не имеет кнопок справа от поля." ;
+    dsl1:dslConnection    "calculator.dsl" ;
+    dsl1:uidslConnection  "calculator.uidsl" ;
+    dsl1:bpmnElement      "UserTask" ;
+    dsl1:bpmnId           "Task_Input1" .
+
+calc:Input2
+    a dsl1:NumberField , owl:NamedIndividual ;
+    rdfs:label "Второе число (Input2)" ;
+    rdfs:comment "Поле ввода второго числового операнда. id=Input2. Связано с .dsl и .uidsl через этот идентификатор. Фильтр ввода: только числа. Не имеет кнопок справа от поля." ;
+    dsl1:dslConnection    "calculator.dsl" ;
+    dsl1:uidslConnection  "calculator.uidsl" ;
+    dsl1:bpmnElement      "UserTask" ;
+    dsl1:bpmnId           "Task_Input2" .
+
+calc:OperationField
+    a dsl1:DropdownField , owl:NamedIndividual ;
+    rdfs:label "Операция (Operation)" ;
+    rdfs:comment "Поле выбора операции. id=Operation. Выпадающий список. Набор значений определяется через funSPARQLvalues при инициализации. Связано с .dsl и .uidsl через идентификатор Operation." ;
+    dsl1:dslConnection    "calculator.dsl" ;
+    dsl1:uidslConnection  "calculator.uidsl" ;
+    dsl1:bpmnElement      "ServiceTask" ;
+    dsl1:bpmnId           "Task_LoadOperations" .
+
+calc:ResultField
+    a dsl1:ReadonlyField , owl:NamedIndividual ;
+    rdfs:label "Результат (Result)" ;
+    rdfs:comment "Поле вывода числового результата вычисления. id=Result. Только для чтения. Показывает результат при успешном вычислении. При ошибке остаётся пустым — ошибка идёт в поле Status." ;
+    dsl1:bpmnElement "DataObject" ;
+    dsl1:bpmnId      "DataObject_Result" .
+
+calc:StatusField
+    a dsl1:StatusField , owl:NamedIndividual ;
+    rdfs:label "Статус (Status)" ;
+    rdfs:comment "Поле статуса выполнения. id=status. Только для чтения. Выводит сообщения об ошибках ('Ошибка: деление на ноль' и т.д.) и сообщение об успехе ('Расчёт выполнен'). Ошибки выводятся ТОЛЬКО сюда, не в поле Result." ;
+    dsl1:bpmnElement "DataObject" ;
+    dsl1:bpmnId      "DataObject_Status" .

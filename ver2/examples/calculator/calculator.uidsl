@@ -1,19 +1,34 @@
 // ============================================================================
-// Калькулятор — UI DSL (ver2)
+// Калькулятор — UI DSL (ver2_1a)
 // Файл: calculator.uidsl
 //
-// Описывает интерфейс калькулятора.
-// По сравнению с ver1 убраны:
-//   - окно «История вычислений» (Calculation History)
-//   - окно «Частота операций» (Operation Frequency)
-//   - кнопка «Clear History»
+// Использует логику из: calculator.dsl
+// Онтологии:
+//   ../../ontology/dsl1_ontology.ttl
+//   ../../ontology/calculator_ontology.ttl
 //
-// Каждый элемент BIND TO ссылается на FUNCTION из calculator.dsl.
-// Блоки ON CLICK используют выражения PL/SPARQL.
+// Идентификаторы полей (id в HTML):
+//   Input1    — первое число   (в метке отображается как "Первое число (Input1)")
+//   Input2    — второе число   (в метке отображается как "Второе число (Input2)")
+//   Operation — тип операции   (выпадающий список)
+//   Result    — результат      (только для чтения)
+//   status    — статус/ошибки  (только для чтения)
+//
+// Изменения относительно ver2:
+//   - operand1 → Input1, operand2 → Input2, operationType → Operation
+//   - Метки полей содержат id в скобках: "Первое число (Input1)"
+//   - Поля Input1/Input2: тип text с числовым фильтром (НЕ type=number!)
+//     Причина: type=number добавляет кнопки-стрелки справа от поля.
+//     В требованиях: "никаких кнопок в правой части поля ввода"
+//   - Добавлено поле id=status для вывода ошибок (ошибки НЕ идут в Result)
+//   - Добавлена кнопка Выход (явный EndEvent процесса)
+//   - Operation BIND TO funSPARQLvalues (Comunica SPARQL, через SPARQL.js)
 // ============================================================================
 
-USE DSL "calculator.dsl"
-USE ONTOLOGY "calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#>"
+USE DSL      "calculator.dsl"
+USE ONTOLOGY "../../ontology/dsl1_ontology.ttl"
+USE ONTOLOGY "../../ontology/calculator_ontology.ttl"
+
 
 // ============================================================================
 // Главное окно калькулятора
@@ -21,51 +36,73 @@ USE ONTOLOGY "calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#>"
 WINDOW calculatorWindow {
   TITLE     "Калькулятор"
   WIDTH     440
-  HEIGHT    360
+  HEIGHT    480
   RESIZABLE false
   STYLE     "calculator-window"
 
   // --------------------------------------------------------------------------
-  // Панель результата — показывает текущий результат или начальный ноль
+  // Поле результата — показывает числовой результат вычисления
+  // Ошибки сюда НЕ выводятся — они идут в поле id=status
+  // [BPMN: DataObject — Результат]
   // --------------------------------------------------------------------------
-  FIELD display {
+  FIELD Result {
     LABEL       "Результат"
-    TYPE        text
-    READONLY    true
+    TYPE        readonly
     PLACEHOLDER "0"
     STYLE       "display-panel"
   }
 
   // --------------------------------------------------------------------------
   // Ввод первого числа
+  // id=Input1 — связь .uidsl и .dsl через этот идентификатор
+  // TYPE text с фильтром на числа (не type=number — нет кнопок-стрелок!)
+  // [BPMN: UserTask — ввод Input1]
   // --------------------------------------------------------------------------
-  FIELD operand1 {
-    LABEL       "Первое число"
+  FIELD Input1 {
+    LABEL       "Первое число (Input1)"
     TYPE        number
-    PLACEHOLDER "Введите первое число"
+    PLACEHOLDER "Введите число"
     REQUIRED    true
-    STYLE       "operand-field"
+    FILTER      numeric
+    STYLE       "input-field"
   }
 
   // --------------------------------------------------------------------------
   // Ввод второго числа
+  // id=Input2 — связь .uidsl и .dsl через этот идентификатор
+  // TYPE text с фильтром на числа (не type=number — нет кнопок-стрелок!)
+  // [BPMN: UserTask — ввод Input2]
   // --------------------------------------------------------------------------
-  FIELD operand2 {
-    LABEL       "Второе число"
+  FIELD Input2 {
+    LABEL       "Второе число (Input2)"
     TYPE        number
-    PLACEHOLDER "Введите второе число"
+    PLACEHOLDER "Введите число"
     REQUIRED    true
-    STYLE       "operand-field"
+    FILTER      numeric
+    STYLE       "input-field"
   }
 
   // --------------------------------------------------------------------------
-  // Выпадающий список операций — заполняется из хранилища через getOperations()
-  // Вызов getOperations() относится к модулю ИНИЦИАЛИЗАЦИЯ
+  // Выпадающий список операций
+  // id=Operation — связь .uidsl и .dsl через этот идентификатор
+  // Значения определяются в calculator_ontology.ttl (индивиды calc:Operation).
+  // Список получается через funSPARQLvalues при инициализации.
+  // [BPMN: ServiceTask — загрузка операций через funSPARQLvalues]
   // --------------------------------------------------------------------------
-  DROPDOWN operationType {
+  DROPDOWN Operation {
     LABEL     "Операция"
-    BIND TO   getOperations()
-    DISPLAY   ?symbol
+    BIND TO   funSPARQLvalues(currentStore, "
+      PREFIX calc: <https://github.com/bpmbpm/DSL1/ontology/calculator#>
+      PREFIX dsl:  <https://github.com/bpmbpm/DSL1/ontology#>
+      SELECT ?label ?symbol ?labelRu ?orderVal WHERE {
+        ?op a calc:Operation ;
+            calc:operationName   ?label ;
+            calc:operationSymbol ?symbol ;
+            calc:operationLabel  ?labelRu ;
+            dsl:order            ?orderVal .
+      } ORDER BY ASC(?orderVal)
+    ")
+    DISPLAY   ?symbol + " (" + ?labelRu + ")"
     VALUE     ?label
     SELECTION single
     REQUIRED  true
@@ -73,7 +110,20 @@ WINDOW calculatorWindow {
   }
 
   // --------------------------------------------------------------------------
+  // Поле статуса — вывод ошибок и сообщений о результате
+  // id=status — ТОЛЬКО сюда выводятся ошибки, не в поле Result
+  // [BPMN: DataObject — Статус]
+  // --------------------------------------------------------------------------
+  FIELD status {
+    LABEL       "Статус"
+    TYPE        readonly
+    PLACEHOLDER ""
+    STYLE       "status-panel"
+  }
+
+  // --------------------------------------------------------------------------
   // Кнопка «Вычислить» — запускает модуль ВЫЧИСЛЕНИЕ
+  // [BPMN: UserTask → ServiceTask: calculate + formatResult]
   // --------------------------------------------------------------------------
   BUTTON calculateBtn {
     LABEL "Вычислить"
@@ -81,29 +131,39 @@ WINDOW calculatorWindow {
     ORDER 1
 
     ON CLICK {
-      let op1    = NUMBER(operand1.value)
-      let op2    = NUMBER(operand2.value)
-      let opType = operationType.value
+      let op1    = NUMBER(Input1.value)
+      let op2    = NUMBER(Input2.value)
+      let opType = Operation.value
 
-      la-if (op1 === null || op2 === null) {
-        SHOW ALERT "Введите оба числа перед вычислением."
+      // Проверка: поля не пустые
+      la-if (Input1.value === "" || Input2.value === "") {
+        status.value = "Ошибка: введите оба числа"
         return
       }
 
+      // Проверка: операция выбрана
       la-if (opType === null || opType === "") {
-        SHOW ALERT "Выберите операцию."
+        status.value = "Ошибка: выберите операцию"
         return
       }
 
       let rawResult     = calculate(op1, op2, opType)
       let displayResult = formatResult(rawResult, 10)
 
-      display.value = displayResult
+      // Если результат — ошибка, выводим в status, иначе — в Result
+      la-if (typeof rawResult === "string" && rawResult.startsWith("Ошибка")) {
+        status.value  = displayResult
+        Result.value  = ""
+      } else {
+        Result.value  = displayResult
+        status.value  = "Расчёт выполнен"
+      }
     }
   }
 
   // --------------------------------------------------------------------------
-  // Кнопка «Очистить» — сбрасывает поля ввода и дисплей
+  // Кнопка «Очистить» — сбрасывает все поля ввода и вывода
+  // [BPMN: UserTask → ServiceTask: handleClear]
   // --------------------------------------------------------------------------
   BUTTON clearBtn {
     LABEL "Очистить"
@@ -111,10 +171,25 @@ WINDOW calculatorWindow {
     ORDER 2
 
     ON CLICK {
-      operand1.value      = ""
-      operand2.value      = ""
-      operationType.value = ""
-      display.value       = ""
+      Input1.value     = ""
+      Input2.value     = ""
+      Operation.value  = ""
+      Result.value     = ""
+      status.value     = ""
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Кнопка «Выход» — явное завершение процесса
+  // [BPMN: EndEvent — завершение процесса Calculator]
+  // --------------------------------------------------------------------------
+  BUTTON exitBtn {
+    LABEL "Выход"
+    STYLE "btn-danger"
+    ORDER 3
+
+    ON CLICK {
+      CLOSE WINDOW
     }
   }
 }
