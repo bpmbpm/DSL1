@@ -90,3 +90,6 @@ async function funSPARQLvalues(currentStore, sparqlQuery)
 - [Пошаговое руководство](examples/calculator/instructions.md)
 - [Конвертация DSL1 → BPMN 2.0](examples/calculator/BPMN_converter.md)
 - [DSL1 ver1](../ver1/) — полная версия с транслятором, IDE, историей вычислений
+
+### also
+- https://www.eraser.io/ai/bpmn-diagram-generator
