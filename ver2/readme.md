@@ -1,6 +1,8 @@
 # DSL1 ver2
 
 Упрощённая версия системы программирования DSL1.
+## run github
+https://bpmbpm.github.io/DSL1/ver2/examples/calculator/calculator.html  
 
 ## Отличия от ver1
 
