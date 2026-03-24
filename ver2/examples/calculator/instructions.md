@@ -260,16 +260,20 @@ flowchart TD
 
     H --> K{Input1 и Input2\nне пустые?}
     K -->|нет| L[status ← Ошибка: введите оба числа]
-    K -->|да|  M{Operation\nвыбрана?}
+    K -->|да| M{Operation\nвыбрана?}
     M -->|нет| N[status ← Ошибка: выберите операцию]
-    M -->|да|  O[calculate Input1, Input2, opType]
+    M -->|да| O[calculate Input1, Input2, opType]
     O --> P{Деление на ноль?}
-    P -->|да|  Q[status ← Ошибка: деление на ноль]
+    P -->|да| Q[status ← Ошибка: деление на ноль]
     P -->|нет| R[formatResult]
     R --> S[Result ← результат\nstatus ← Расчёт выполнен]
 ```
-Ошибка:  
+Ошибки:  
 ... G -->|Очистить| I[handleClear]
+
+...исла] K -->|да| M{Operation\nвыбран
+
+т.е. нужно пробелы удалять вручную 
 
 ### 8.2 Взаимодействие функций
 
