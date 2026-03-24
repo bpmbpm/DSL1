@@ -250,13 +250,13 @@ flowchart TD
     A([Открытие страницы]) --> B[DOMContentLoaded]
     B --> C[loadOntology\nfetch TTL → N3.Store]
     C --> D[funSPARQLvalues\nComunica SPARQL]
-    D --> E[initDropdown\nзаполнение Operation]
+    D --> E[initDropdown\nзаполнение #Operation]
     E --> F([Интерфейс готов])
 
     F --> G{Действие пользователя}
     G -->|Вычислить| H[handleCalculate]
-    G -->|Очистить|  I[handleClear]
-    G -->|Выход|     J([EndEvent: window.close])
+    G -->|Очистить| I[handleClear]
+    G -->|Выход| J([EndEvent: window.close])
 
     H --> K{Input1 и Input2\nне пустые?}
     K -->|нет| L[status ← Ошибка: введите оба числа]
@@ -268,7 +268,8 @@ flowchart TD
     P -->|нет| R[formatResult]
     R --> S[Result ← результат\nstatus ← Расчёт выполнен]
 ```
-Ошибка: D --> E[initDropdown\nзаполнение #Operation]
+Ошибка:  
+... G -->|Очистить| I[handleClear]
 
 ### 8.2 Взаимодействие функций
 
