@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Калькулятор + DSL1 Консоль + JS Консоль (ver2_1b)</title>
+<title>Калькулятор + DSL1 Консоль (ver2_1a)</title>
 
 <!-- N3.js — парсинг RDF/Turtle и хранилище (quadStore) -->
 <script src="https://unpkg.com/n3@1.17.2/browser/n3.min.js"></script>
@@ -234,78 +234,18 @@ window.__dsl1LogQueue = [];
   .btn-danger:hover    { background: var(--danger-dark); }
 
   /* ══════════════════════════════════════════════════════════════════════
-      ПРАВАЯ КОЛОНКА: Контейнер консолей (DSL1 + JS)
-   ══════════════════════════════════════════════════════════════════════ */
-  .consoles-container {
-    display: flex;
-    gap: 16px;
-    flex: 1;
-    min-width: 0;
-  }
-
+     ПРАВАЯ КОЛОНКА: DSL1 Консоль
+  ══════════════════════════════════════════════════════════════════════ */
   .dsl1-console {
     background: var(--console-bg);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     flex: 1;
-    min-width: 350px;
-    max-width: 500px;
+    min-width: 400px;
+    max-width: 700px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-  }
-
-  .js-console {
-    background: var(--console-bg);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    flex: 1;
-    min-width: 350px;
-    max-width: 500px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .js-console .console-header h3 {
-    color: #f9e2af;
-  }
-
-  .js-code {
-    font-family: var(--mono);
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--console-text);
-    white-space: pre;
-    overflow-x: auto;
-    flex: 1;
-  }
-
-  .js-code .kw    { color: #cba6f7; }
-  .js-code .fn    { color: #f9e2af; }
-  .js-code .str   { color: var(--console-green); }
-  .js-code .cmt   { color: #6c7086; font-style: italic; }
-  .js-code .num   { color: #fab387; }
-
-  .highlight-active {
-    background: #313244 !important;
-    border-radius: 3px;
-    padding: 1px 3px;
-    margin: -1px -3px;
-  }
-
-  .highlight-dsl1 {
-    background: #45475a !important;
-    border-left: 3px solid var(--console-accent);
-    padding-left: 8px;
-    margin-left: -11px;
-  }
-
-  .highlight-js {
-    background: #45475a !important;
-    border-left: 3px solid #f9e2af;
-    padding-left: 8px;
-    margin-left: -11px;
   }
 
   .console-header {
@@ -478,31 +418,11 @@ window.__dsl1LogQueue = [];
     padding: 5px 0;
   }
 
-  /* Связь между консолями */
-  .console-link {
-    font-size: 10px;
-    color: #6c7086;
-    padding: 4px 8px;
-    background: #313244;
-    border-radius: 4px;
-    margin: 4px 0;
-  }
-
-  .console-link-dsl1 {
-    color: var(--console-accent);
-  }
-
-  .console-link-js {
-    color: #f9e2af;
-  }
-
   /* Адаптивность */
-  @media (max-width: 1100px) {
+  @media (max-width: 900px) {
     body { flex-direction: column; }
     .calculator-window { width: 100%; max-width: 100%; }
-    .consoles-container { flex-direction: column; }
     .dsl1-console { min-width: auto; max-width: 100%; }
-    .js-console { min-width: auto; max-width: 100%; }
   }
 </style>
 </head>
@@ -513,6 +433,19 @@ window.__dsl1LogQueue = [];
 ══════════════════════════════════════════════════════════════════════ -->
 <div class="calculator-window">
   <h2>Калькулятор</h2>
+
+  <!-- Схема "чёрный ящик" процесса -->
+  <div class="process-schema"><span class="schema-title">Схема процесса (укрупнённая)</span>┌─────────────────────────────────────┐
+│          КАЛЬКУЛЯТОР                │
+│                                     │
+│  ВВОД          ┃     ВЫВОД          │
+│  [Input1] ─────┨─► [Результат]      │
+│  [Input2] ─────┨─► [Статус]         │
+│  [Operation] ──┘                    │
+│                                     │
+│  УПРАВЛЕНИЕ                         │
+│  [Вычислить] [Очистить] [Выход]     │
+└─────────────────────────────────────┘</div>
 
   <!-- Панель результата (id=Result) -->
   <div class="display-panel">
@@ -556,87 +489,49 @@ window.__dsl1LogQueue = [];
 
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     ПРАВАЯ КОЛОНКА: Контейнер консолей (DSL1 + JS)
+     ПРАВАЯ КОЛОНКА: DSL1 Консоль
 ══════════════════════════════════════════════════════════════════════ -->
-<div class="consoles-container">
-  <!-- DSL1 Консоль -->
-  <div class="dsl1-console">
-    <div class="console-header">
-      <h3>DSL1 Консоль</h3>
-      <span class="console-badge">ver2_1b</span>
+<div class="dsl1-console">
+  <div class="console-header">
+    <h3>DSL1 Консоль</h3>
+    <span class="console-badge">ver2_1a</span>
+  </div>
+
+  <!-- Вкладки -->
+  <div class="console-tabs">
+    <div class="console-tab active" onclick="switchTab('dsl1-code')">DSL1 код</div>
+    <div class="console-tab" onclick="switchTab('sparql-log')">SPARQL запросы</div>
+    <div class="console-tab" onclick="switchTab('sparql-results')">Результаты SPARQL</div>
+  </div>
+
+  <div class="console-content">
+    <!-- Вкладка 1: DSL1 код -->
+    <div id="pane-dsl1-code" class="console-pane active">
+      <div id="dsl1-code-view" class="dsl1-code"><!-- Заполняется из calculator.dsl --></div>
     </div>
 
-    <!-- Вкладки -->
-    <div class="console-tabs">
-      <div class="console-tab active" onclick="switchTab('dsl1-code')">DSL1 код</div>
-      <div class="console-tab" onclick="switchTab('sparql-log')">SPARQL запросы</div>
-      <div class="console-tab" onclick="switchTab('sparql-results')">Результаты SPARQL</div>
-    </div>
-
-    <div class="console-content">
-      <!-- Вкладка 1: DSL1 код -->
-      <div id="pane-dsl1-code" class="console-pane active">
-        <div id="dsl1-code-view" class="dsl1-code"><!-- Заполняется из calculator.dsl --></div>
-      </div>
-
-      <!-- Вкладка 2: SPARQL запросы -->
-      <div id="pane-sparql-log" class="console-pane">
-        <div id="sparql-log-view" class="sparql-log">
-          <div style="color:#6c7086;font-size:12px;font-family:var(--mono)">
-            Ожидание SPARQL-запросов...
-          </div>
-        </div>
-      </div>
-
-      <!-- Вкладка 3: Результаты SPARQL -->
-      <div id="pane-sparql-results" class="console-pane">
-        <div id="sparql-results-view" class="sparql-log">
-          <div style="color:#6c7086;font-size:12px;font-family:var(--mono)">
-            Ожидание результатов...
-          </div>
+    <!-- Вкладка 2: SPARQL запросы -->
+    <div id="pane-sparql-log" class="console-pane">
+      <div id="sparql-log-view" class="sparql-log">
+        <div style="color:#6c7086;font-size:12px;font-family:var(--mono)">
+          Ожидание SPARQL-запросов...
         </div>
       </div>
     </div>
 
-    <div class="console-footer">
-      <button class="btn-console" onclick="clearSparqlLog()">Очистить лог</button>
-      <span class="event-count" id="event-count">0 событий</span>
+    <!-- Вкладка 3: Результаты SPARQL -->
+    <div id="pane-sparql-results" class="console-pane">
+      <div id="sparql-results-view" class="sparql-log">
+        <div style="color:#6c7086;font-size:12px;font-family:var(--mono)">
+          Ожидание результатов...
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- JS Консоль -->
-  <div class="js-console">
-    <div class="console-header">
-      <h3>JS Консоль</h3>
-      <span class="console-badge">ver2_1b</span>
-    </div>
-
-    <!-- Вкладки -->
-    <div class="console-tabs">
-      <div class="console-tab active" onclick="switchJsTab('js-code')">JS код</div>
-      <div class="console-tab" onclick="switchJsTab('js-log')">JS лог</div>
-    </div>
-
-    <div class="console-content">
-      <!-- Вкладка 1: JS код -->
-      <div id="pane-js-code" class="console-pane active">
-        <div id="js-code-view" class="js-code"><!-- Заполняется из calculator_DSL1.html --></div>
-      </div>
-
-      <!-- Вкладка 2: JS лог -->
-      <div id="pane-js-log" class="console-pane">
-        <div id="js-log-view" class="sparql-log">
-          <div style="color:#6c7086;font-size:12px;font-family:var(--mono)">
-            Ожидание выполнения JS...
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="console-footer">
-      <button class="btn-console" onclick="clearJsLog()">Очистить лог</button>
-      <span class="event-count" id="js-event-count">0 событий</span>
-    </div>
+  <div class="console-footer">
+    <button class="btn-console" onclick="clearSparqlLog()">Очистить лог</button>
+    <span class="event-count" id="event-count">0 событий</span>
   </div>
 </div>
 
@@ -825,23 +720,15 @@ function handleCalculate() {
   var op2Raw = document.getElementById('Input2').value.trim();
   var opType = document.getElementById('Operation').value;
 
-  // Логируем выполнение в JS консоль
-  jsLogAdd('JS', 'handleCalculate() вызвана');
-
-  // Подсвечиваем JS код
-  jsConsoleHighlight('handleCalculate', 'calculate');
-
   // Логируем выполнение DSL1 в консоль
   dsl1ConsoleHighlight('calculate');
 
   if (op1Raw === '' || op2Raw === '') {
     showStatus('Ошибка: введите оба числа', true);
-    jsLogAdd('JS', 'Ошибка: введите оба числа');
     return;
   }
   if (!opType) {
     showStatus('Ошибка: выберите операцию', true);
-    jsLogAdd('JS', 'Ошибка: выберите операцию');
     return;
   }
 
@@ -851,30 +738,20 @@ function handleCalculate() {
   if (typeof rawResult === 'string' && rawResult.startsWith('Ошибка')) {
     showStatus(displayResult, true);
     document.getElementById('Result').value = '';
-    jsLogAdd('JS', 'Ошибка вычисления: ' + displayResult);
   } else {
     document.getElementById('Result').value = displayResult;
     showStatus('Расчёт выполнен', false);
-    jsLogAdd('JS', 'Результат: ' + displayResult);
   }
 }
 
 function handleClear() {
-  // Логируем выполнение в JS консоль
-  jsLogAdd('JS', 'handleClear() вызвана');
-
-  // Подсвечиваем JS код
-  jsConsoleHighlight('handleClear', 'handleClear');
-
-  // Подсвечиваем DSL1 код
-  dsl1ConsoleHighlight('handleClear');
-
   document.getElementById('Input1').value    = '';
   document.getElementById('Input2').value    = '';
   document.getElementById('Operation').value = '';
   document.getElementById('Result').value    = '';
   showStatus('', false);
   document.getElementById('status').classList.remove('error', 'ok');
+  dsl1ConsoleHighlight('handleClear');
 }
 
 function handleExit() {
@@ -1013,98 +890,21 @@ function renderSparqlEntry(entry) {
 }
 
 // Подсветка текущей выполняемой функции в DSL1-коде
-// Также подсвечивает соответствующий JS код и передаёт связь в лог
 function dsl1ConsoleHighlight(funcName) {
   var codeEl = document.getElementById('dsl1-code-view');
-  // Убираем старую подсветку DSL1
+  // Убираем старую подсветку
   codeEl.querySelectorAll('.highlight-active').forEach(function(el) {
     el.classList.remove('highlight-active');
   });
-  codeEl.querySelectorAll('.highlight-dsl1').forEach(function(el) {
-    el.classList.remove('highlight-dsl1');
-  });
-  // Находим строку с именем функции в DSL1
+  // Находим строку с именем функции
   var spans = codeEl.querySelectorAll('.fn');
   spans.forEach(function(span) {
     if (span.textContent === funcName) {
-      span.classList.add('highlight-active', 'highlight-dsl1');
-      // Прокрутка к функции
-      span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      span.classList.add('highlight-active');
+      span.style.background = '#313244';
+      span.style.borderRadius = '3px';
     }
   });
-
-  // Находим соответствующую JS функцию и подсвечиваем её
-  var jsFuncName = dslToJsMap[funcName];
-  if (jsFuncName) {
-    jsConsoleHighlight(jsFuncName, funcName);
-  }
-
-  // Логируем связь в JS консоль
-  if (jsFuncName) {
-    jsLogAdd('DSL1 → JS', 'Выполняется: ' + funcName + ' → ' + jsFuncName);
-  }
-}
-
-// Карта соответствия DSL1 функций JS функциям
-var dslToJsMap = {
-  'getOperations': 'initDropdown',
-  'calculate': 'handleCalculate',
-  'formatResult': 'handleCalculate',
-  'handleClear': 'handleClear',
-  'handleExit': 'handleExit',
-  'loadOntology': 'DOMContentLoaded',
-  'initDropdown': 'initDropdown'
-};
-
-// Карта соответствия JS функций DSL1 функциям
-var jsToDslMap = {
-  'handleCalculate': 'calculate',
-  'handleClear': 'handleClear',
-  'handleExit': 'handleExit',
-  'initDropdown': 'getOperations',
-  'loadOntology': 'getOperations',
-  'calculate': 'calculate',
-  'formatResult': 'formatResult'
-};
-
-// Подсветка текущей выполняемой функции в JS-коде
-// Также подсвечивает соответствующую DSL1 команду
-function jsConsoleHighlight(funcName, dslFuncName) {
-  var codeEl = document.getElementById('js-code-view');
-  // Убираем старую подсветку JS
-  codeEl.querySelectorAll('.highlight-active').forEach(function(el) {
-    el.classList.remove('highlight-active');
-  });
-  codeEl.querySelectorAll('.highlight-js').forEach(function(el) {
-    el.classList.remove('highlight-js');
-  });
-  // Находим строку с именем функции в JS
-  var spans = codeEl.querySelectorAll('.fn');
-  spans.forEach(function(span) {
-    if (span.textContent === funcName) {
-      span.classList.add('highlight-active', 'highlight-js');
-      // Прокрутка к функции
-      span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  });
-
-  // Если передано имя DSL1 функции, подсвечиваем её
-  if (dslFuncName) {
-    var dslCodeEl = document.getElementById('dsl1-code-view');
-    dslCodeEl.querySelectorAll('.highlight-active').forEach(function(el) {
-      el.classList.remove('highlight-active');
-    });
-    dslCodeEl.querySelectorAll('.highlight-dsl1').forEach(function(el) {
-      el.classList.remove('highlight-dsl1');
-    });
-    var dslSpans = dslCodeEl.querySelectorAll('.fn');
-    dslSpans.forEach(function(span) {
-      if (span.textContent === dslFuncName) {
-        span.classList.add('highlight-active', 'highlight-dsl1');
-        span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
-  }
 }
 
 // Очистка лога SPARQL
@@ -1116,56 +916,6 @@ function clearSparqlLog() {
     '<div style="color:#6c7086;font-size:12px;font-family:var(--mono)">Ожидание SPARQL-запросов...</div>';
   document.getElementById('sparql-results-view').innerHTML =
     '<div style="color:#6c7086;font-size:12px;font-family:var(--mono)">Ожидание результатов...</div>';
-}
-
-// Переключение вкладок JS консоли
-function switchJsTab(tabId) {
-  document.querySelectorAll('.js-console .console-tab').forEach(function(t) {
-    t.classList.remove('active');
-  });
-  document.querySelectorAll('.js-console .console-pane').forEach(function(p) {
-    p.classList.remove('active');
-  });
-  document.getElementById('pane-' + tabId).classList.add('active');
-
-  // Найти кнопку вкладки и активировать
-  var tabs = document.querySelectorAll('.js-console .console-tab');
-  var tabMap = { 'js-code': 0, 'js-log': 1 };
-  var idx = tabMap[tabId];
-  if (idx !== undefined) tabs[idx].classList.add('active');
-}
-
-var jsEventCount = 0;
-
-// Добавление записи в JS лог
-function jsLogAdd(type, message) {
-  var logEl = document.getElementById('js-log-view');
-  jsEventCount++;
-  document.getElementById('js-event-count').textContent = jsEventCount + ' событий';
-
-  // Очищаем плейсхолдер при первом событии
-  if (logEl.textContent.trim().includes('Ожидание')) {
-    logEl.innerHTML = '';
-  }
-
-  var entryDiv = document.createElement('div');
-  entryDiv.className = 'sparql-entry';
-  entryDiv.innerHTML =
-    '<div class="sparql-entry-header">' +
-      '<span>' + type + '</span>' +
-      '<span style="color:#6c7086">' + new Date().toLocaleTimeString() + '</span>' +
-    '</div>' +
-    '<div class="sparql-query-text">' + escapeHtml(message) + '</div>';
-  logEl.appendChild(entryDiv);
-  logEl.scrollTop = logEl.scrollHeight;
-}
-
-// Очистка лога JS
-function clearJsLog() {
-  jsEventCount = 0;
-  document.getElementById('js-event-count').textContent = '0 событий';
-  document.getElementById('js-log-view').innerHTML =
-    '<div style="color:#6c7086;font-size:12px;font-family:var(--mono)">Ожидание выполнения JS...</div>';
 }
 
 // Экранирование HTML
@@ -1224,127 +974,6 @@ function syntaxHighlightDsl1(code) {
   return result;
 }
 
-// Подсветка синтаксиса JavaScript
-function syntaxHighlightJs(code) {
-  var result = escapeHtml(code);
-
-  // Однострочные комментарии
-  result = result.replace(/(\/\/.+)/g, '<span class="cmt">$1</span>');
-
-  // Многострочные комментарии
-  result = result.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="cmt">$1</span>');
-
-  // Ключевые слова JS
-  var jsKeywords = ['function', 'var', 'let', 'const', 'return', 'if', 'else', 'for', 'while',
-                    'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'class', 'extends',
-                    'true', 'false', 'null', 'undefined', 'typeof', 'instanceof'];
-  jsKeywords.forEach(function(kw) {
-    var escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    result = result.replace(new RegExp('\\b(' + escaped + ')\\b', 'g'),
-      '<span class="kw">$1</span>');
-  });
-
-  // Строковые литералы (одинарные и двойные кавычки)
-  result = result.replace(/("[^"]*")/g, '<span class="str">$1</span>');
-  result = result.replace(/('[^']*')/g, '<span class="str">$1</span>');
-
-  // Числа
-  result = result.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
-
-  // Имена функций (слова за которыми следует '(')
-  result = result.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()/g, '<span class="fn">$1</span>');
-
-  return result;
-}
-
-// Загрузка и отображение JS-кода из calculator_DSL1.html
-async function loadJsCode() {
-  var codeEl = document.getElementById('js-code-view');
-  try {
-    // Получаем текущий скрипт из страницы
-    var scripts = document.querySelectorAll('script');
-    var mainScript = null;
-    for (var i = 0; i < scripts.length; i++) {
-      if (scripts[i].src === '' && scripts[i].textContent.length > 1000) {
-        mainScript = scripts[i];
-        break;
-      }
-    }
-
-    if (mainScript) {
-      var text = mainScript.textContent;
-      // Ограничиваем код основными функциями для отображения
-      var relevantCode = extractRelevantCode(text);
-      codeEl.innerHTML = syntaxHighlightJs(relevantCode);
-    } else {
-      codeEl.textContent = '(Не удалось загрузить JS код)';
-    }
-  } catch (e) {
-    codeEl.textContent = '(Ошибка при загрузке JS кода: ' + e.message + ')';
-  }
-}
-
-// Извлечение релевантного кода для отображения в JS консоли
-function extractRelevantCode(fullScript) {
-  // Находим начало основного скрипта
-  var startMarkers = [
-    '// Логика калькулятора',
-    '// Логика DSL1-консоли',
-    'var calcNS',
-    'function handleCalculate'
-  ];
-
-  var startIdx = -1;
-  for (var i = 0; i < startMarkers.length; i++) {
-    var idx = fullScript.indexOf(startMarkers[i]);
-    if (idx !== -1 && (startIdx === -1 || idx < startIdx)) {
-      startIdx = idx;
-    }
-  }
-
-  if (startIdx === -1) {
-    return fullScript.substring(0, 5000);
-  }
-
-  // Находим конец скрипта (до закрывающего тега script)
-  var endIdx = fullScript.indexOf('</script>', startIdx);
-  if (endIdx === -1) {
-    endIdx = fullScript.length;
-  }
-
-  var code = fullScript.substring(startIdx, endIdx);
-
-  // Убираем слишком длинные строки для удобства просмотра
-  var lines = code.split('\n');
-  var relevantLines = [];
-  var importantFuncs = [
-    'handleCalculate', 'handleClear', 'handleExit', 'calculate',
-    'formatResult', 'initDropdown', 'loadOntology', 'getOperations',
-    'dsl1ConsoleHighlight', 'jsConsoleHighlight', 'syntaxHighlight'
-  ];
-
-  for (var j = 0; j < lines.length; j++) {
-    var line = lines[j];
-    // Включаем строки с важными функциями
-    for (var k = 0; k < importantFuncs.length; k++) {
-      if (line.indexOf(importantFuncs[k]) !== -1) {
-        relevantLines.push(line);
-        // Добавляем следующие 10 строк для контекста
-        for (var m = 1; m <= 10 && j + m < lines.length; m++) {
-          relevantLines.push(lines[j + m]);
-        }
-        break;
-      }
-    }
-  }
-
-  if (relevantLines.length === 0) {
-    return code.substring(0, 5000);
-  }
-
-  return relevantLines.join('\n');
-}
-
 
 // ============================================================
 // ЗАПУСК
@@ -1360,14 +989,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // 3. Загружаем DSL1-код для отображения в консоли
   await loadDsl1Code();
 
-  // 4. Загружаем JS-код для отображения в JS консоли
-  await loadJsCode();
-
-  // Логируем начало работы
-  jsLogAdd('Система', 'Калькулятор ver2_1b инициализирован');
-  jsLogAdd('DSL1 → JS', 'Связь между консолями установлена');
-
-  // 5. Загружаем онтологии и заполняем список операций
+  // 4. Загружаем онтологии и заполняем список операций
   await loadOntology();
   await initDropdown();
 });
