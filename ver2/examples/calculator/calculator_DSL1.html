@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Калькулятор + DSL1 Консоль + JS Консоль (ver2_1b)</title>
+<title>Калькулятор + DSL1 Консоль + JS Консоль (ver2_1c)</title>
 
 <!-- N3.js — парсинг RDF/Turtle и хранилище (quadStore) -->
 <script src="https://unpkg.com/n3@1.17.2/browser/n3.min.js"></script>
@@ -225,10 +225,12 @@ window.__dsl1LogQueue = [];
     flex: 1;
     min-width: 350px;
     max-width: 500px;
+    min-height: 400px;
     height: 600px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    resize: vertical;
   }
 
   .js-console {
@@ -238,10 +240,12 @@ window.__dsl1LogQueue = [];
     flex: 1;
     min-width: 350px;
     max-width: 500px;
+    min-height: 400px;
     height: 600px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    resize: vertical;
   }
 
   .js-console .console-header h3 {
@@ -540,7 +544,7 @@ window.__dsl1LogQueue = [];
   <div class="dsl1-console">
     <div class="console-header">
       <h3>DSL1 Консоль</h3>
-      <span class="console-badge">ver2_1b</span>
+      <span class="console-badge">ver2_1c</span>
     </div>
 
     <!-- Вкладки -->
@@ -585,7 +589,7 @@ window.__dsl1LogQueue = [];
   <div class="js-console">
     <div class="console-header">
       <h3>JS Консоль</h3>
-      <span class="console-badge">ver2_1b</span>
+      <span class="console-badge">ver2_1c</span>
     </div>
 
     <!-- Вкладки -->
@@ -1284,7 +1288,7 @@ function extractRelevantCode(fullScript) {
   }
 
   // Находим конец скрипта (до закрывающего тега script)
-  var endIdx = fullScript.indexOf('</script>', startIdx);
+  var endIdx = fullScript.indexOf('</' + 'script>', startIdx);
   if (endIdx === -1) {
     endIdx = fullScript.length;
   }
@@ -1352,7 +1356,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   await loadJsCode();
 
   // Логируем начало работы
-  jsLogAdd('Система', 'Калькулятор ver2_1b инициализирован');
+  jsLogAdd('Система', 'Калькулятор ver2_1c инициализирован');
   jsLogAdd('DSL1 → JS', 'Связь между консолями установлена');
 
   // 5. Загружаем онтологии и заполняем список операций
